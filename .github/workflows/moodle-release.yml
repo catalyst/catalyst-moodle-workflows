@@ -18,6 +18,12 @@ on:
       plugin_repository_url:
         required: true
         type: string
+      matrix_moodle_branch:
+        required: true
+        type: string
+      matrix_php:
+        required: true
+        type: string
       extra_plugin_runners:
         type: string
 
@@ -50,6 +56,8 @@ jobs:
         moodle-branch: ['master']
         php: ['7.4']
         node: ['14.15']
+        include:
+          - {moodle-branch: ${{ inputs.matrix_moodle_branch }}, php: ${{ inputs.matrix_php }}}
 
     steps:
       - name: Check out repository code
@@ -125,34 +133,34 @@ jobs:
       - name: Run behat
         run: moodle-plugin-ci behat --profile chrome
 
-      - name: Release at Moodle.org by calling the service function
-        id: add-version
-        env:
-          PLUGIN: ${{ inputs.plugin_name }}
-          BRANCH: ${{ inputs.plugin_branch }}
-          URL: ${{ inputs.plugin_repository_url }}
-          CURL: curl -s
-          ENDPOINT: https://moodle.org/webservice/rest/server.php
-          TOKEN: ${{ secrets.MOODLE_ORG_TOKEN }}
-          FUNCTION: local_plugins_add_version
-          run: |
-            ZIPURL="${URL}/archive/refs/heads/${BRANCH}.zip"
-            RESPONSE=$(${CURL} ${ENDPOINT} --data-urlencode "wstoken=${TOKEN}" \
-              --data-urlencode "wsfunction=${FUNCTION}" \
-              --data-urlencode "moodlewsrestformat=json" \
-              --data-urlencode "frankenstyle=${PLUGIN}" \
-              --data-urlencode "zipurl=${ZIPURL}" \
-              --data-urlencode "vcssystem=git" \
-              --data-urlencode "vcsrepositoryurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
-              --data-urlencode "vcstag=${TAGNAME}" \
-              --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${BRANCH}" \
-              --data-urlencode "altdownloadurl=${ZIPURL}")
-            echo "::set-output name=response::${RESPONSE}"
+      # - name: Release at Moodle.org by calling the service function
+      #   id: add-version
+      #   env:
+      #     PLUGIN: ${{ inputs.plugin_name }}
+      #     BRANCH: ${{ inputs.plugin_branch }}
+      #     URL: ${{ inputs.plugin_repository_url }}
+      #     CURL: curl -s
+      #     ENDPOINT: https://moodle.org/webservice/rest/server.php
+      #     TOKEN: ${{ secrets.MOODLE_ORG_TOKEN }}
+      #     FUNCTION: local_plugins_add_version
+      #   run: |
+      #     ZIPURL="${URL}/archive/refs/heads/${BRANCH}.zip"
+      #     RESPONSE=$(${CURL} ${ENDPOINT} --data-urlencode "wstoken=${TOKEN}" \
+      #       --data-urlencode "wsfunction=${FUNCTION}" \
+      #       --data-urlencode "moodlewsrestformat=json" \
+      #       --data-urlencode "frankenstyle=${PLUGIN}" \
+      #       --data-urlencode "zipurl=${ZIPURL}" \
+      #       --data-urlencode "vcssystem=git" \
+      #       --data-urlencode "vcsrepositoryurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+      #       --data-urlencode "vcstag=${TAGNAME}" \
+      #       --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${BRANCH}" \
+      #       --data-urlencode "altdownloadurl=${ZIPURL}")
+      #     echo "::set-output name=response::${RESPONSE}"
 
-      - name: Evaluate the response
-        id: evaluate-response
-        env:
-          RESPONSE: ${{ steps.add-version.outputs.response }}
-        run: |
-          jq <<< ${RESPONSE}
-          jq --exit-status ".id" <<< ${RESPONSE} > /dev/null
+      # - name: Evaluate the response
+      #   id: evaluate-response
+      #   env:
+      #     RESPONSE: ${{ steps.add-version.outputs.response }}
+      #   run: |
+      #     jq <<< ${RESPONSE}
+      #     jq --exit-status ".id" <<< ${RESPONSE} > /dev/null
