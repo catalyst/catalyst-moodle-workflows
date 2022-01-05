@@ -18,6 +18,7 @@ runs:
       with:
         path: plugin
     - name: Release at Moodle.org by calling the service function
+      if: ${{ secrets.MOODLE_ORG_TOKEN }}
       id: add-version
       env:
         PLUGIN: ${{ inputs.plugin_name }}
@@ -43,6 +44,7 @@ runs:
       shell: bash
 
     - name: Evaluate the response
+      if: ${{ secrets.MOODLE_ORG_TOKEN }}
       id: evaluate-response
       env:
         RESPONSE: ${{ steps.add-version.outputs.response }}

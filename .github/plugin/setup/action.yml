@@ -3,6 +3,8 @@ description: 'Run plugin setup'
 inputs:
   extra_plugin_runners:
     description: 'Command to install dependencies'
+  disable_behat:
+    description: 'Option to disable behat tests'
 runs:
   using: "composite"
   steps:
@@ -80,7 +82,7 @@ runs:
       shell: bash
 
     - name: Run behat
-      if: ${{ always() }}
+      if: ${{ always() && inputs.disable_behat != 'true' }}
       run: moodle-plugin-ci behat --profile chrome
       shell: bash
 

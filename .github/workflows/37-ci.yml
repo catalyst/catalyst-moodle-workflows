@@ -5,6 +5,8 @@ on:
     inputs:
       extra_plugin_runners:
         type: string
+      disable_behat:
+        type: boolean
 
 jobs:
   setup:
@@ -53,3 +55,4 @@ jobs:
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
         with:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          disable_behat: ${{ inputs.disable_behat }}
