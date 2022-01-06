@@ -10,6 +10,8 @@ inputs:
   plugin_repository_url:
     required: true
     type: string
+  moodle_org_token:
+    type: string
 runs:
   using: "composite"
   steps:
@@ -18,7 +20,7 @@ runs:
       with:
         path: plugin
     - name: Release at Moodle.org by calling the service function
-      if: ${{ secrets.MOODLE_ORG_TOKEN }}
+      if: ${{ inputs.moodle_org_token }}
       id: add-version
       env:
         PLUGIN: ${{ inputs.plugin_name }}
@@ -26,7 +28,7 @@ runs:
         URL: ${{ inputs.plugin_repository_url }}
         CURL: curl -s
         ENDPOINT: https://moodle.org/webservice/rest/server.php
-        TOKEN: ${{ secrets.MOODLE_ORG_TOKEN }}
+        TOKEN: ${{ inputs.moodle_org_token }}
         FUNCTION: local_plugins_add_version
       run: |
         ZIPURL="${URL}/archive/refs/heads/${BRANCH}.zip"
@@ -44,7 +46,7 @@ runs:
       shell: bash
 
     - name: Evaluate the response
-      if: ${{ secrets.MOODLE_ORG_TOKEN }}
+      if: ${{ inputs.moodle_org_token }}
       id: evaluate-response
       env:
         RESPONSE: ${{ steps.add-version.outputs.response }}

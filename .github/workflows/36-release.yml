@@ -18,6 +18,8 @@ on:
       plugin_repository_url:
         required: true
         type: string
+      moodle_org_token:
+        type: string
       extra_plugin_runners:
         type: string
       disable_behat:
@@ -66,3 +68,4 @@ jobs:
           plugin_name: ${{ inputs.plugin_name }}
           plugin_branch: ${{ inputs.plugin_branch }}
           plugin_repository_url: ${{ inputs.plugin_repository_url }}
+          moodle_org_token: ${{ inputs.moodle_org_token }}
