@@ -1,0 +1,81 @@
+#
+# Whenever version.php is changed, add the latest version
+# to the Moodle Plugins directory at https://moodle.org/plugins
+#
+# revision: 2021121500
+#
+name: Releasing plugin group for Moodle 3.5+ in the Plugins directory
+
+on:
+  workflow_call:
+    inputs:
+      plugin_name:
+        required: true
+        type: string
+      plugin_branch:
+        required: true
+        type: string
+      plugin_repository_url:
+        required: true
+        type: string
+      extra_plugin_runners:
+        type: string
+      disable_behat:
+        type: boolean
+    secrets:
+      moodle_org_token:
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:10
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['pgsql']
+        moodle-branch: ['MOODLE_35_STABLE', 'MOODLE_36_STABLE', 'MOODLE_37_STABLE', 'MOODLE_38_STABLE']
+        node: ['14.15']
+        php: ['7.1', '7.2']
+        include:
+          - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_37_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_38_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_311_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+
+    steps:
+      - name: Run plugin setup
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        with:
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          disable_behat: ${{ inputs.disable_behat }}
+
+      - name: Run plugin release
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+        with:
+          plugin_name: ${{ inputs.plugin_name }}
+          plugin_branch: ${{ inputs.plugin_branch }}
+          plugin_repository_url: ${{ inputs.plugin_repository_url }}
+          moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
