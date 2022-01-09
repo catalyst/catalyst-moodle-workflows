@@ -5,6 +5,8 @@ inputs:
     description: 'Command to install dependencies'
   disable_behat:
     description: 'Option to disable behat tests'
+  disable_phplint:
+    description: 'Option to disable phplint tests'
 runs:
   using: "composite"
   steps:
@@ -23,6 +25,7 @@ runs:
         php-version: ${{ matrix.php }}
         extensions: pgsql, mysqli, zip, gd, xmlrpc, soap
         coverage: none
+        tools: phpunit
 
     - name: Initialise moodle-plugin-ci
       run: |
@@ -48,7 +51,7 @@ runs:
         MOODLE_BRANCH: ${{ matrix.moodle-branch }}
 
     - name: Run phplint
-      if: ${{ always() }}
+      if: ${{ always() && inputs.disable_phplint != 'true' }}
       run: moodle-plugin-ci phplint
       shell: bash
 

@@ -1,0 +1,90 @@
+name: Moodle plugin CI group for Moodle 3.3+
+
+on:
+  workflow_call:
+    inputs:
+      extra_plugin_runners:
+        type: string
+      disable_behat:
+        type: boolean
+      disable_phplint:
+        type: boolean
+
+jobs:
+  setup:
+    name: CI test for Moodle 3.3+
+    env:
+      IGNORE_PATHS: tests/fixtures
+    runs-on: 'ubuntu-latest'
+
+    services:
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+
+      mariadb:
+        image: mariadb:10.5
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mariadb', 'pgsql']
+        moodle-branch: [
+          'MOODLE_33_STABLE',
+          'MOODLE_34_STABLE',
+          'MOODLE_35_STABLE',
+          'MOODLE_36_STABLE',
+          # 'MOODLE_37_STABLE',
+          # 'MOODLE_38_STABLE'
+        ]
+        node: ['8.9']
+        php: ['7.1', '7.2']
+        exclude:
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.2', node: '8.9', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.2', node: '8.9', database: 'pgsql'}
+        include:
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.0', node: '8.9', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.0', node: '8.9', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '8.9', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '8.9', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_37_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_37_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_38_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_38_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.2', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_310_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+          - {moodle-branch: 'MOODLE_311_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_311_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+
+    steps:
+      - name: Run plugin setup
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        with:
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          disable_behat: ${{ inputs.disable_behat }}
+          disable_phplint: ${{ inputs.disable_phplint }}
