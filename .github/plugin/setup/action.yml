@@ -92,10 +92,10 @@ runs:
 
     - name: PHP Copy/Paste Detector
       if: ${{ always() }}
-      run: moodle-plugin-ci phpcpd
+      run: moodle-plugin-ci phpcpd || true
       shell: bash
 
     - name: PHP Mess Detector
       if: ${{ always() }}
-      run: moodle-plugin-ci phpmd
+      run: moodle-plugin-ci phpmd || true
       shell: bash
