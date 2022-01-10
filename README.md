@@ -2,6 +2,9 @@
 
 Thanks to the new GitHub Actions feature called "Reusable Workflows" we can now reference an existing workflow with a single line of configuration rather than copying and pasting from one workflow to another.
 
+## Grouping actions
+
+
 ## Using a Reusable Workflow
 Now that we have our reusable workflow ready, it is time to use it in another workflow.
 
@@ -41,11 +44,11 @@ Let's analyse this:
 </li>
 </ul>
 
-In real example above, this is how I'd reference it in a job called workflow_311_ci:
+In real example above, this is how I'd reference it in a job called group-35-plus-ci.yml:
 
 ```
-workflow_311_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/311-ci.yml@main
+workflow_group_35_plus_ci:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 ```
 
 Now of course we have to pass the parameters. Let's start with the inputs:
@@ -65,43 +68,8 @@ name: Run all tests
 on: [push, pull_request]
 
 jobs:
-  workflow_34_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/34-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_35_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/35-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_36_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/36-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_37_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/37-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_38_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/38-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_39_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/39-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_310_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/310-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
-  workflow_311_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/311-ci.yml@main
+  workflow_group_310_plus_ci:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
     with:
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 
@@ -112,8 +80,8 @@ Please note the "extra_plugin_runners" parameter is not required in our case.
 If your plugin want more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line) as a separation. Eg:
 
 ```
-workflow_36:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/36.yml@main
+workflow_group_310_plus_ci:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
     with:
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws | moodle-plugin-ci add-plugin catalyst/moodle-mod_attendance'
 ```
@@ -125,29 +93,9 @@ name: Run all tests
 on: [push, pull_request]
 
 jobs:
-  workflow_35_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/35-ci.yml@main
+  workflow_group_35_plus_ci:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 
-  workflow_36_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/36-ci.yml@main
-
-  workflow_37_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/37-ci.yml@main
-
-  workflow_38_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/38-ci.yml@main
-
-  workflow_39_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/39-ci.yml@main
-
-  workflow_310_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/310-ci.yml@main
-
-  workflow_311_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/311-ci.yml@main
-
-  workflow_master_ci:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/master-ci.yml@main
 ```
 
 Here is an example for master-release reusable workflow which uses to releasing in the plugins directory
@@ -161,11 +109,13 @@ on:
       - 'version.php'
 
 jobs:
-  workflow_master_release:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/master-release.yml@main
+  workflow_group_35_plus_release:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-release.yml@main
     with:
       plugin_name: auth_enrolkey
       plugin_branch: master
       plugin_repository_url: https://github.com/catalyst/moodle-auth_enrolkey
+    secrets:
+      moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
 ```
 Where plugin_name, plugin_branch and plugin_repository_url are required parameters here.
