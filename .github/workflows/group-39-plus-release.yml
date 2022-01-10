@@ -22,6 +22,10 @@ on:
         type: string
       disable_behat:
         type: boolean
+      disable_phplint:
+        type: boolean
+      disable_phpunit:
+        type: boolean
     secrets:
       moodle_org_token:
         required: true
@@ -64,6 +68,8 @@ jobs:
         with:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           disable_behat: ${{ inputs.disable_behat }}
+          disable_phplint: ${{ inputs.disable_phplint }}
+          disable_phpunit: ${{ inputs.disable_phpunit }}
 
       - name: Run plugin release
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
