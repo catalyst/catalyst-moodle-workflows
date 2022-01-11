@@ -4,6 +4,27 @@ Thanks to the new GitHub Actions feature called "Reusable Workflows" we can now 
 
 ## Grouping actions
 
+We have 2 types of group actions. lets call these the 'closed' groups and 'open' groups:
+### Open groups
+
+| Moodle version    | CI group              |  Plugin release group       |
+| ----------------- | -------------         | --------------------------- |
+| Moodle 33+        | group-33-plus-ci.yml  | group-33-plus-release.yml   |
+| Moodle 34+        | group-34-plus-ci.yml  | group-34-plus-release.yml   |
+| Moodle 35+        | group-35-plus-ci.yml  | group-35-plus-release.yml   |
+| Moodle 36+        | group-36-plus-ci.yml  | group-36-plus-release.yml   |
+| Moodle 37+        | group-37-plus-ci.yml  | group-37-plus-release.yml   |
+| Moodle 38+        | group-34-plus-ci.yml  | group-38-plus-release.yml   |
+| Moodle 39+        | group-39-plus-ci.yml  | group-39-plus-release.yml   |
+| Moodle 310+       | group-310-plus-ci.yml | group-310-plus-release.yml  |
+| Moodle 311+       | group-311-plus-ci.yml | group-311-plus-release.yml  |
+
+### Closed groups
+
+| Moodle version     | CI group                |
+| ----------------- | -------------           |
+| Moodle 34 to 38   | group-34-to-38-ci.yml   |
+| Moodle 34 to 39   | group-34-to-39-ci.yml   |
 
 ## Using a Reusable Workflow
 Now that we have our reusable workflow ready, it is time to use it in another workflow.
