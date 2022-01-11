@@ -4,12 +4,6 @@ inputs:
   plugin_name:
     required: true
     type: string
-  plugin_branch:
-    required: true
-    type: string
-  plugin_repository_url:
-    required: true
-    type: string
   moodle_org_token:
     required: true
 runs:
@@ -19,36 +13,33 @@ runs:
       uses: actions/checkout@v2
       with:
         path: plugin
-    # - name: Release at Moodle.org by calling the service function
-    #   id: add-version
-    #   env:
-    #     PLUGIN: ${{ inputs.plugin_name }}
-    #     BRANCH: ${{ inputs.plugin_branch }}
-    #     URL: ${{ inputs.plugin_repository_url }}
-    #     CURL: curl -s
-    #     ENDPOINT: https://moodle.org/webservice/rest/server.php
-    #     TOKEN: ${{ inputs.moodle_org_token }}
-    #     FUNCTION: local_plugins_add_version
-    #   run: |
-    #     ZIPURL="${URL}/archive/refs/heads/${BRANCH}.zip"
-    #     RESPONSE=$(${CURL} ${ENDPOINT} --data-urlencode "wstoken=${TOKEN}" \
-    #       --data-urlencode "wsfunction=${FUNCTION}" \
-    #       --data-urlencode "moodlewsrestformat=json" \
-    #       --data-urlencode "frankenstyle=${PLUGIN}" \
-    #       --data-urlencode "zipurl=${ZIPURL}" \
-    #       --data-urlencode "vcssystem=git" \
-    #       --data-urlencode "vcsrepositoryurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
-    #       --data-urlencode "vcstag=${TAGNAME}" \
-    #       --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${BRANCH}" \
-    #       --data-urlencode "altdownloadurl=${ZIPURL}")
-    #     echo "::set-output name=response::${RESPONSE}"
-    #   shell: bash
+    - name: Release at Moodle.org by calling the service function
+      id: add-version
+      env:
+        PLUGIN: ${{ inputs.plugin_name }}
+        CURL: curl -s
+        ENDPOINT: https://moodle.org/webservice/rest/server.php
+        TOKEN: ${{ inputs.moodle_org_token }}
+        FUNCTION: local_plugins_add_version
+      run: |
+        RESPONSE=$(${CURL} ${ENDPOINT} --data-urlencode "wstoken=${TOKEN}" \
+          --data-urlencode "wsfunction=${FUNCTION}" \
+          --data-urlencode "moodlewsrestformat=json" \
+          --data-urlencode "frankenstyle=${PLUGIN}" \
+          --data-urlencode "zipurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/archive/refs/heads/${GITHUB_REF_NAME}.zip" \
+          --data-urlencode "vcssystem=git" \
+          --data-urlencode "vcsrepositoryurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+          --data-urlencode "vcstag=${TAGNAME}" \
+          --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" \
+          --data-urlencode "altdownloadurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/archive/refs/heads/${GITHUB_REF_NAME}.zip")
+        echo "::set-output name=response::${RESPONSE}"
+      shell: bash
 
-    # - name: Evaluate the response
-    #   id: evaluate-response
-    #   env:
-    #     RESPONSE: ${{ steps.add-version.outputs.response }}
-    #   run: |
-    #     jq <<< ${RESPONSE}
-    #     jq --exit-status ".id" <<< ${RESPONSE} > /dev/null
-    #   shell: bash
+    - name: Evaluate the response
+      id: evaluate-response
+      env:
+        RESPONSE: ${{ steps.add-version.outputs.response }}
+      run: |
+        jq <<< ${RESPONSE}
+        jq --exit-status ".id" <<< ${RESPONSE} > /dev/null
+      shell: bash
