@@ -31,7 +31,7 @@ Now that we have our reusable workflow ready, it is time to use it in another wo
 
 To do so, just add it directly in a job of your workflow with this syntax:
 
-```
+```yaml
  job_name:
     uses: USER_OR_ORG_NAME/REPO_NAME/.github/workflows/REUSABLE_WORKFLOW_FILE.yml@TAG_OR_BRANCH
 
@@ -67,14 +67,14 @@ Let's analyse this:
 
 In real example above, this is how I'd reference it in a job called group-35-plus-ci.yml:
 
-```
+```yaml
 workflow_group_35_plus_ci:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 ```
 
 Now of course we have to pass the parameters. Let's start with the inputs:
 
-```
+```yaml
 with:
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 ```
@@ -83,7 +83,7 @@ As you can see, we just use the "with" clause, and we specify the name of the in
 
 And this is it. So the complete example would look like this for ci
 
-```
+```yaml
 name: Run all tests
 
 on: [push, pull_request]
@@ -100,7 +100,7 @@ Please note the "extra_plugin_runners" parameter is not required in our case.
 
 If your plugin want more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line) as a separation. Eg:
 
-```
+```yaml
 workflow_group_310_plus_ci:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
     with:
@@ -108,7 +108,7 @@ workflow_group_310_plus_ci:
 ```
 Here is an another full example which doesn't need extra plugins.
 
-```
+```yaml
 name: Run all tests
 
 on: [push, pull_request]
@@ -121,7 +121,7 @@ jobs:
 
 Here is an example for master-release reusable workflow which uses to releasing in the plugins directory
 
-```
+```yaml
 name: Releasing in the Plugins directory
 
 on:
