@@ -130,7 +130,7 @@ Here is the list of available inputs (all are optional) for CI:
 
 | Available inputs for CI     | Used for                                                  | Required? |
 | --------------------------- | --------------------------------------------------------- | --------- |
-| workflow_group_35_plus_ci   | Command to install dependencies                           | No        |
+| extra_plugin_runners        | Command to install dependencies                           | No        |
 | disable_behat               | Option to disable behat tests. It will disable if true.   | No        |
 | disable_phplint             | Option to disable phplint tests. It will disable if true. | No        |
 | disable_phpunit             | Option to disable phpunit tests. It will disable if true. | No        |
