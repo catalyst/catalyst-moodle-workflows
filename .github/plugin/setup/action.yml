@@ -9,6 +9,8 @@ inputs:
     description: 'Option to disable phplint tests'
   disable_phpunit:
     description: 'Option to disable phpunit tests'
+  disable_grunt:
+    description: 'Option to disable grunt'
 runs:
   using: "composite"
   steps:
@@ -72,7 +74,7 @@ runs:
       shell: bash
 
     - name: Run grunt
-      if: ${{ always() }}
+      if: ${{ always() && inputs.disable_grunt != 'true' }}
       run: moodle-plugin-ci grunt
       shell: bash
 
