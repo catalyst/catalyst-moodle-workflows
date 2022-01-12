@@ -12,12 +12,6 @@ on:
       plugin_name:
         required: true
         type: string
-      plugin_branch:
-        required: true
-        type: string
-      plugin_repository_url:
-        required: true
-        type: string
       extra_plugin_runners:
         type: string
       disable_behat:
@@ -92,9 +86,8 @@ jobs:
           disable_grunt: ${{ inputs.disable_grunt }}
 
       - name: Run plugin release
+        if: ${{ matrix.moodle-branch == 'MOODLE_311_STABLE' }}
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
         with:
           plugin_name: ${{ inputs.plugin_name }}
-          plugin_branch: ${{ inputs.plugin_branch }}
-          plugin_repository_url: ${{ inputs.plugin_repository_url }}
           moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
