@@ -21,7 +21,7 @@ We have 2 types of group actions. lets call these the 'closed' groups and 'open'
 
 ### Closed groups
 
-| Moodle version     | CI group                |
+| Moodle version     | CI group               |
 | ----------------- | -------------           |
 | Moodle 34 to 38   | group-34-to-38-ci.yml   |
 | Moodle 34 to 39   | group-34-to-39-ci.yml   |
@@ -81,7 +81,10 @@ with:
 
 As you can see, we just use the "with" clause, and we specify the name of the inputs.
 
-And this is it. So the complete example would look like this for ci
+## How to call reusable workflow for CI in plugin?
+
+Create ci.yml with below data under .github/workflows directory of your plugin. Update the CI group file (here it is using group-310-plus-ci.yml) based on your plugin support.
+
 
 ```yaml
 name: Run all tests
@@ -118,14 +121,28 @@ jobs:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 
 ```
+Here is the list of available inputs (all are optional) for CI:
 
-Here is an example for master-release reusable workflow which uses to releasing in the plugins directory
+| Available inputs for CI     | Used for                                                  | Required? |
+| --------------------------- | --------------------------------------------------------- | --------- |
+| workflow_group_35_plus_ci   | Command to install dependencies                           | No        |
+| disable_behat               | Option to disable behat tests. It will disable if true.   | No        |
+| disable_phplint             | Option to disable phplint tests. It will disable if true. | No        |
+| disable_phpunit             | Option to disable phpunit tests. It will disable if true. | No        |
+| disable_grunt               | Option to disable grunt. It will disable if true.         | No        |
+
+
+## How to call reusable workflow for plugin moodle release?
+
+Create moodle-release.yml with below data under .github/workflows directory of your plugin. Update the moodle release group file (here it is using group-35-plus-release.yml) based on your plugin support. It uses to releasing in the plugins directory
 
 ```yaml
 name: Releasing in the Plugins directory
 
 on:
   push:
+    branches:
+      - master
     paths:
       - 'version.php'
 
@@ -134,9 +151,13 @@ jobs:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-release.yml@main
     with:
       plugin_name: auth_enrolkey
-      plugin_branch: master
-      plugin_repository_url: https://github.com/catalyst/moodle-auth_enrolkey
     secrets:
       moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
 ```
-Where plugin_name, plugin_branch and plugin_repository_url are required parameters here.
+Whenever version.php is changed, add the latest version to the Moodle Plugins directory at https://moodle.org/plugins.
+
+You should update below items for each plugin
+* branches - Add branches you wish to publish into Moodle Plugins directory. So release workflow will trigger on push or pull request but only for the master (in current example) branch.
+* plugin_name - Update the frankenstyle plugin name
+
+Also please note that all these inputs are required parameters.
