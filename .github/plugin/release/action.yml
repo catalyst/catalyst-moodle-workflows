@@ -30,6 +30,7 @@ runs:
           --data-urlencode "vcssystem=git" \
           --data-urlencode "vcsrepositoryurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
           --data-urlencode "vcstag=${TAGNAME}" \
+          --data-urlencode "vcsbranch=${GITHUB_REF_NAME}" \
           --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" \
           --data-urlencode "altdownloadurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/archive/refs/heads/${GITHUB_REF_NAME}.zip")
         echo "::set-output name=response::${RESPONSE}"
