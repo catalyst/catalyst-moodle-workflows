@@ -165,4 +165,10 @@ You should update below items for each plugin
 * branches - Add branches you wish to publish into Moodle Plugins directory. So release workflow will trigger on push or pull request but only for the master (in current example) branch.
 * plugin_name - Update the frankenstyle plugin name
 
-Also please note that all these inputs are required parameters.
+Also please note:
+* All these inputs are required parameters.
+* Please check MOODLE_ORG_TOKEN is available in your plugin's Settings > Secrets section. If not, please create using below steps:
+  * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
+  * Locate the Navigation block > Plugins > API access.
+    * Use that page to generate your personal token for the `plugins_maintenance` service.
+  * Go back to your plugin repository at Github. Locate your plugin's Settings > Secrets section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
