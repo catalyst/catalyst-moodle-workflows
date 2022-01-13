@@ -53,6 +53,7 @@ jobs:
       matrix:
         database: ['mariadb', 'pgsql']
         moodle-branch: [
+          'MOODLE_33_STABLE',
           'MOODLE_34_STABLE',
           'MOODLE_35_STABLE',
           'MOODLE_36_STABLE',
@@ -61,9 +62,10 @@ jobs:
         ]
         node: ['14.15']
         php: ['7.1', '7.2']
+        exclude:
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.2', node: '14.15', database: 'mariadb'}
+          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
         include:
-          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.0', node: '8.9', database: 'mariadb'}
-          - {moodle-branch: 'MOODLE_33_STABLE', php: '7.0', node: '8.9', database: 'pgsql'}
           - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
           - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
           - {moodle-branch: 'MOODLE_37_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}

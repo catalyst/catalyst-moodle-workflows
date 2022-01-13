@@ -30,6 +30,19 @@ runs:
         extensions: pgsql, mysqli, zip, gd, xmlrpc, soap
         coverage: none
 
+    - name: Configure Required Composer Version
+      id: install-composer1
+      if: ${{ matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      run: |
+        echo "::set-output name=COMPOSER_VERSION::--1"
+      shell: bash
+
+    - name: Update Composer
+      if: ${{ matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      run: |
+        composer self-update ${{ steps.install-composer1.outputs.COMPOSER_VERSION }}
+      shell: bash
+
     - name: Initialise moodle-plugin-ci
       run: |
         composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci ^3
