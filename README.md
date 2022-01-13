@@ -172,3 +172,4 @@ Also please note:
   * Locate the Navigation block > Plugins > API access.
     * Use that page to generate your personal token for the `plugins_maintenance` service.
   * Go back to your plugin repository at Github. Locate your plugin's Settings > Secrets section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
+* To release in plugin directory we should bump plugin version. For the older stables with closed groups, make sure version is only a micro bump.
