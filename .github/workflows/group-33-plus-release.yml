@@ -86,7 +86,7 @@ jobs:
           disable_grunt: ${{ inputs.disable_grunt }}
 
       - name: Run plugin release
-        if: ${{ matrix.moodle-branch == 'MOODLE_311_STABLE' }}
+        if: ${{ matrix.moodle-branch == 'MOODLE_311_STABLE' && matrix.php == '7.3' }}
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
         with:
           plugin_name: ${{ inputs.plugin_name }}
