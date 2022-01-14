@@ -86,6 +86,11 @@ runs:
       run: moodle-plugin-ci savepoints
       shell: bash
 
+    - name: Run mustache
+      if: ${{ always() }}
+      run: moodle-plugin-ci phpcpd || true
+      shell: bash
+
     - name: Run grunt
       if: ${{ always() && inputs.disable_grunt != 'true' }}
       run: moodle-plugin-ci grunt
