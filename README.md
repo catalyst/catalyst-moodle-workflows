@@ -88,10 +88,13 @@ As you can see, we just use the "with" clause, and we specify the name of the in
 
 ## How to call reusable workflow for CI in plugin?
 
-Create ci.yml with below data under .github/workflows directory of your plugin. Update the CI group file (here it is using group-310-plus-ci.yml) based on your plugin support.
+Create `.github/workflows/ci.yml` with the below template in your plugin
+repository. Change the targetted CI group file (here it is using
+`group-310-plus-ci.yml`) based on your plugin support.
 
 
 ```yaml
+# .github/workflows/ci.yml
 name: Run all tests
 
 on: [push, pull_request]
@@ -117,6 +120,7 @@ workflow_group_310_plus_ci:
 Here is an another full example which doesn't need extra plugins.
 
 ```yaml
+# .github/workflows/ci.yml
 name: Run all tests
 
 on: [push, pull_request]
@@ -139,9 +143,13 @@ Here is the list of available inputs (all are optional) for CI:
 
 ## How to call reusable workflow for plugin moodle release?
 
-Create moodle-release.yml with below data under .github/workflows directory of your plugin. Update the moodle release group file (here it is using group-35-plus-release.yml) based on your plugin support. It uses to releasing in the plugins directory
+Create `.github/workflows/moodle-release.yml` using the template below in your
+plugin repository. Change the targetted moodle release group file based on your plugin
+support - in this example, `group-35-plus-release.yml` is chosen. This workflow
+is used to automatically generate releases in the plugins directory.
 
 ```yaml
+# .github/workflows/moodle-release.yml
 name: Releasing in the Plugins directory
 
 on:
@@ -161,12 +169,11 @@ jobs:
 ```
 Whenever version.php is changed, add the latest version to the Moodle Plugins directory at https://moodle.org/plugins.
 
-You should update below items for each plugin
-* branches - Add branches you wish to publish into Moodle Plugins directory. So release workflow will trigger on push or pull request but only for the master (in current example) branch.
-* plugin_name - Update the frankenstyle plugin name
+You MUST update below items for each plugin
+* `branches` - branches you wish to publish into Moodle Plugins directory. So release workflow will trigger on push or pull request, and for the example above, only for the master branch.
+* `plugin_name` - the frankenstyle plugin name (also known as the component name)
 
 Also please note:
-* All these inputs are required parameters.
 * Please check MOODLE_ORG_TOKEN is available in your plugin's Settings > Secrets section. If not, please create using below steps:
   * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
   * Locate the Navigation block > Plugins > API access.
