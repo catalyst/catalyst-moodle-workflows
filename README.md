@@ -174,9 +174,5 @@ You MUST update below items for each plugin
 * `plugin_name` - the frankenstyle plugin name (also known as the component name)
 
 Also please note:
-* Please check MOODLE_ORG_TOKEN is available in your plugin's Settings > Secrets section. If not, please create using below steps:
-  * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
-  * Locate the Navigation block > Plugins > API access.
-    * Use that page to generate your personal token for the `plugins_maintenance` service.
-  * Go back to your plugin repository at Github. Locate your plugin's Settings > Secrets section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
+* Please check MOODLE_ORG_TOKEN is available in your plugin's Settings > Secrets section. Currently The we have set the token at the org level and shared across all repos.
 * To release in plugin directory we should bump plugin version. For the older stables with closed groups, make sure version is only a micro bump.
