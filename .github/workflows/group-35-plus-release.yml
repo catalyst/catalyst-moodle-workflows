@@ -49,6 +49,7 @@ jobs:
           --health-retries 3
 
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         database: ['pgsql']
