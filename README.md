@@ -9,7 +9,8 @@ https://moodlehq.github.io/moodle-plugin-ci/
 
 ## Grouping actions
 
-We have 2 types of group actions. lets call these the 'closed' groups and 'open' groups:
+We have 2 types of group actions. lets call these the 'closed' groups and 'open' groups. A closed group is where we know the maximum supported stable and so we can express the group and a range of the earliest and latest supported stable. An open group is one which we do not yet know the upper bound and support may continue for some time, but could also break at any future stable.
+
 ### Open groups
 
 | Moodle version    | CI group              |  Plugin release group       |
