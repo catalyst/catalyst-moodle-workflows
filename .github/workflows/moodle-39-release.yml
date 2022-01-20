@@ -2,7 +2,7 @@
 # Whenever version.php is changed, add the latest version
 # to the Moodle Plugins directory at https://moodle.org/plugins
 #
-name: Releasing plugin group for Moodle 3.5 to 3.9 in the Plugins directory
+name: Releasing plugin with a check for Moodle 3.9 in the Plugins directory
 
 on:
   workflow_call:
@@ -51,20 +51,9 @@ jobs:
       fail-fast: false
       matrix:
         database: ['pgsql']
-        moodle-branch: [
-          'MOODLE_35_STABLE',
-          'MOODLE_36_STABLE',
-          'MOODLE_37_STABLE',
-          'MOODLE_38_STABLE'
-        ]
+        moodle-branch: ['MOODLE_39_STABLE']
         node: ['14.15']
-        php: ['7.1', '7.2']
-        include:
-          - {moodle-branch: 'MOODLE_36_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
-          - {moodle-branch: 'MOODLE_37_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
-          - {moodle-branch: 'MOODLE_38_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
-          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
-          - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+        php: ['7.3']
 
     steps:
       - name: Run plugin setup
@@ -77,7 +66,6 @@ jobs:
           disable_grunt: ${{ inputs.disable_grunt }}
 
       - name: Run plugin release
-        if: ${{ matrix.moodle-branch == 'MOODLE_39_STABLE' && matrix.php == '7.3' }}
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
         with:
           plugin_name: ${{ inputs.plugin_name }}
