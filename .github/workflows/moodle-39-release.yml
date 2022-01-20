@@ -10,15 +10,6 @@ on:
       plugin_name:
         required: true
         type: string
-      strategy_moodle_branch:
-        required: true
-        type: string
-      strategy_node:
-        required: true
-        type: string
-      strategy_php:
-        required: true
-        type: string
       extra_plugin_runners:
         type: string
       disable_behat:
@@ -59,8 +50,10 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        include:
-          - {moodle-branch: ${{ inputs.strategy_moodle_branch }}, php: ${{ inputs.strategy_php }}, node: ${{ inputs.strategy_node }}, database: 'pgsql'}
+        database: ['pgsql']
+        moodle-branch: ['MOODLE_39_STABLE']
+        node: ['14.15']
+        php: ['7.3']
 
     steps:
       - name: Run plugin setup
