@@ -60,9 +60,9 @@ jobs:
       fail-fast: false
       matrix:
         database: ['pgsql']
-        moodle-branch: [ ${{ inputs.strategy_moodle_branch }} ]
-        node: [ ${{ inputs.strategy_node }} ]
-        php: [ ${{ inputs.strategy_php }} ]
+        moodle-branch: ${{ inputs.strategy_moodle_branch }}
+        node: ${{ inputs.strategy_node }}
+        php: ${{ inputs.strategy_php }}
 
     steps:
       - name: Run plugin setup
@@ -74,8 +74,8 @@ jobs:
           disable_phpunit: ${{ inputs.disable_phpunit }}
           disable_grunt: ${{ inputs.disable_grunt }}
 
-      - name: Run plugin release
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
-        with:
-          plugin_name: ${{ inputs.plugin_name }}
-          moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
+      # - name: Run plugin release
+      #   uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+      #   with:
+      #     plugin_name: ${{ inputs.plugin_name }}
+      #     moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
