@@ -66,6 +66,15 @@ runs:
         DB: ${{ matrix.database }}
         MOODLE_BRANCH: ${{ matrix.moodle-branch }}
 
+    - name: Install Core Patches
+      if: ${{ always() }}
+      # We should attempt to install a patch, and pass if there isnt one for the branch.
+      run: |
+        git config --global user.email "test@test.com"
+        git config --global user.name "Test"
+        ((test -f plugin/patch/${{ matrix.moodle-branch }}.diff && cd moodle && git am --whitespace=nowarn < ../plugin/patch/${{ matrix.moodle-branch }}.diff) || echo No patch found;)
+      shell: bash
+
     - name: Run phplint
       if: ${{ always() && inputs.disable_phplint != 'true' }}
       run: moodle-plugin-ci phplint
