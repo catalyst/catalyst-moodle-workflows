@@ -14,28 +14,30 @@ We have 2 types of group actions. lets call these the 'closed' groups and 'open'
 ### Open groups
 
 | Moodle version    | CI group              |  Plugin release group       |
-| ----------------- | -------------         | --------------------------- |
-| Moodle 33+        | group-33-plus-ci.yml  | group-33-plus-release.yml   |
-| Moodle 34+        | group-34-plus-ci.yml  | group-34-plus-release.yml   |
-| Moodle 35+        | group-35-plus-ci.yml  | group-35-plus-release.yml   |
-| Moodle 36+        | group-36-plus-ci.yml  | group-36-plus-release.yml   |
-| Moodle 37+        | group-37-plus-ci.yml  | group-37-plus-release.yml   |
-| Moodle 38+        | group-34-plus-ci.yml  | group-38-plus-release.yml   |
-| Moodle 39+        | group-39-plus-ci.yml  | group-39-plus-release.yml   |
-| Moodle 310+       | group-310-plus-ci.yml | group-310-plus-release.yml  |
-| Moodle 311+       | group-311-plus-ci.yml | group-311-plus-release.yml  |
+|-------------------|-----------------------|-----------------------------|
+| Moodle 3.3+       | group-33-plus-ci.yml  | group-33-plus-release.yml   |
+| Moodle 3.4+       | group-34-plus-ci.yml  | group-34-plus-release.yml   |
+| Moodle 3.5+       | group-35-plus-ci.yml  | group-35-plus-release.yml   |
+| Moodle 3.6+       | group-36-plus-ci.yml  | group-36-plus-release.yml   |
+| Moodle 3.7+       | group-37-plus-ci.yml  | group-37-plus-release.yml   |
+| Moodle 3.8+       | group-34-plus-ci.yml  | group-38-plus-release.yml   |
+| Moodle 3.9+       | group-39-plus-ci.yml  | group-39-plus-release.yml   |
+| Moodle 3.10+      | group-310-plus-ci.yml | group-310-plus-release.yml  |
+| Moodle 3.11+      | group-311-plus-ci.yml | group-311-plus-release.yml  |
+| Moodle 4.0+       | group-40-plus-ci.yml  | group-40-plus-release.yml   |
 
 ### Closed groups
 
 | Moodle version     | CI group               |
-| ----------------- | -------------           |
-| Moodle 34 to 38   | group-34-to-38-ci.yml   |
-| Moodle 34 to 39   | group-34-to-39-ci.yml   |
+|--------------------|------------------------|
+| Moodle 3.4 - 3.8   | group-34-to-38-ci.yml  |
+| Moodle 3.4 - 3.9   | group-34-to-39-ci.yml  |
+| Moodle 3.5 - 3.11  | group-35-to-311-ci.yml |
 
 ## Using a Reusable Workflow
 Now that we have our reusable workflow ready, it is time to use it in another workflow.
 
-To do so, just add it directly in a job of your workflow with this syntax:
+To do so, just add it directly in a `job` of your workflow with this syntax:
 
 ```yaml
  job_name:
@@ -44,37 +46,19 @@ To do so, just add it directly in a job of your workflow with this syntax:
 ```
 
 Let's analyse this:
-<ul>
-<li>
-    You create a job with no steps
-</li>
-<li>
-    You don't add a "runs-on" clause, because it is contained in the reusable workflow
-</li>
-<li>
-    You reference it as "uses" passing:
-</li>
-<li>
-    the name of the user or organization that owns the repo where the reusable workflow is stored
-</li>
-<li>
-    the repo name
-</li>
-<li>
-    the base folder
-</li>
-<li>
-    the name of the reusable workflow yaml file
-</li>
-<li>
-    and the tag or the branch where the file is store (if you haven't created a tag/version for it)
-</li>
-</ul>
+- You create a `job` with no steps
+- You don't need to add a "runs-on" clause, because it is contained in the reusable workflow
+- You reference it as "uses" passing:
+- the name of the user or organization that owns the repo where the reusable workflow is stored
+- the repo name
+- the base folder
+- the name of the reusable workflow yaml file
+- and the tag or the branch where the file is store (if you haven't created a tag/version for it)
 
 In real example above, this is how I'd reference it in a job called group-35-plus-ci.yml:
 
 ```yaml
-workflow_group_35_plus_ci:
+test:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 ```
 
@@ -96,24 +80,24 @@ repository. Change the targetted CI group file (here it is using
 
 ```yaml
 # .github/workflows/ci.yml
-name: Run all tests
+name: ci
 
 on: [push, pull_request]
 
 jobs:
-  workflow_group_310_plus_ci:
+  test:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
     with:
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 
 ```
 
-Please note the "extra_plugin_runners" parameter is not required in our case.
+Please note the `extra_plugin_runners` parameter is not required in our case.
 
-If your plugin want more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line) as a separation. Eg:
+If your plugin want more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line in YAML) as a separator. Eg:
 
 ```yaml
-workflow_group_310_plus_ci:
+test:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
     with:
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws | moodle-plugin-ci add-plugin catalyst/moodle-mod_attendance'
@@ -122,32 +106,31 @@ Here is an another full example which doesn't need extra plugins.
 
 ```yaml
 # .github/workflows/ci.yml
-name: Run all tests
+name: ci
 
 on: [push, pull_request]
 
 jobs:
-  workflow_group_35_plus_ci:
+  test:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
 
 ```
-Here is the list of available inputs (all are optional) for CI:
+Below is the list of available inputs (all optional) for CI:
 
-| Available inputs for CI     | Used for                                                  | Required? |
-| --------------------------- | --------------------------------------------------------- | --------- |
-| extra_plugin_runners        | Command to install dependencies                           | No        |
-| disable_behat               | Option to disable behat tests. It will disable if true.   | No        |
-| disable_phplint             | Option to disable phplint tests. It will disable if true. | No        |
-| disable_phpunit             | Option to disable phpunit tests. It will disable if true. | No        |
-| disable_grunt               | Option to disable grunt. It will disable if true.         | No        |
+| Inputs                  | Description                                |
+|-------------------------|--------------------------------------------|
+| extra_plugin_runners    | Command to install additional dependencies |
+| disable_behat           | Set `true` to disable behat tests.         |
+| disable_phplint         | Set `true` to disable phplint tests.       |
+| disable_phpunit         | Set `true` to disable phpunit tests.       |
+| disable_grunt           | Set `true` to disable grunt.               |
 
 
 ## How to call reusable workflow for plugin moodle release?
 
-Create `.github/workflows/moodle-release.yml` using the template below in your
-plugin repository. Change the targetted moodle release group file based on your plugin
+Create `.github/workflows/moodle-release.yml` using the template below in your plugin repository. Change the targetted moodle release group file based on your plugin
 support - in this example, `group-35-plus-release.yml` is chosen. This workflow
-is used to automatically generate releases in the plugins directory.
+is used to automatically generate and publish releases to the plugins directory.
 
 ```yaml
 # .github/workflows/moodle-release.yml
@@ -161,7 +144,7 @@ on:
       - 'version.php'
 
 jobs:
-  workflow_group_35_plus_release:
+  release:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-release.yml@main
     with:
       plugin_name: auth_enrolkey
@@ -170,13 +153,17 @@ jobs:
 ```
 Whenever version.php is changed, add the latest version to the Moodle Plugins directory at https://moodle.org/plugins.
 
-You MUST update below items for each plugin
-* `branches` - branches you wish to publish into Moodle Plugins directory. So release workflow will trigger on push or pull request, and for the example above, only for the master branch.
-* `plugin_name` - the frankenstyle plugin name (also known as the component name)
+You **MUST** update below items for each plugin
+* `branches` - Add branches you wish to publish into Moodle Plugins directory. In this example, release workflow will trigger on a **push** event to the master branch.
+* `plugin_name` - Update this to the **frankenstyle** plugin name (located in `version.php` of the plugin folder)
 
 Also please note:
-* Please check MOODLE_ORG_TOKEN is available in your plugin's Settings > Secrets section. Currently The we have set the token at the org level and shared across all repos.
-* To release in plugin directory we should bump plugin version. For the older stables with closed groups, make sure version is only a micro bump.
+* Please check `MOODLE_ORG_TOKEN` is available in your plugin's **Settings > Secrets** section. If not, please create using below steps:
+  * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
+  * Locate the **Navigation block > Plugins > API access**.
+    * Use that page to generate your personal token for the `plugins_maintenance` service.
+  * Go back to your plugin repository at Github. Locate your plugin's **Settings > Secrets** section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
+* To release in plugin directory we **MUST** bump plugin version. For the older stables with closed groups, please ensure the version is only a <ins>**micro bump**</ins>.
 
 ## My Repo is complicated!
 ### Core patches
