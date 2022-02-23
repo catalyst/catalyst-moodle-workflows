@@ -16,7 +16,7 @@ on:
 
 jobs:
   setup:
-    name: CI test for Moodle 3.6+
+    name: 3.6+
     env:
       IGNORE_PATHS: tests/fixtures
     runs-on: 'ubuntu-latest'
