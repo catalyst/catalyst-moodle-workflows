@@ -28,11 +28,16 @@ We have 2 types of group actions. lets call these the 'closed' groups and 'open'
 
 ### Closed groups
 
-| Moodle version     | CI group               |
-|--------------------|------------------------|
-| Moodle 3.4 - 3.8   | group-34-to-38-ci.yml  |
-| Moodle 3.4 - 3.9   | group-34-to-39-ci.yml  |
-| Moodle 3.5 - 3.11  | group-35-to-311-ci.yml |
+| Moodle version     | CI group                   |
+|--------------------|----------------------------|
+| Moodle 2.7 - 3.2   | group-27-to-32-release.yml |
+| Moodle 3.3 - 3.8   | group-33-to-38-ci.yml      |
+| Moodle 3.3 - 3.9   | group-33-to-39-ci.yml      |
+| Moodle 3.4 - 3.8   | group-34-to-38-ci.yml      |
+| Moodle 3.4 - 3.9   | group-34-to-39-ci.yml      |
+| Moodle 3.5 - 3.9   | group-35-to-39-ci.yml      |
+| Moodle 3.5 - 3.10  | group-35-to-310-ci.yml     |
+| Moodle 3.5 - 3.11  | group-35-to-311-ci.yml     |
 
 ## Using a Reusable Workflow
 Now that we have our reusable workflow ready, it is time to use it in another workflow.
