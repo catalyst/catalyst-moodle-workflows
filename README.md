@@ -9,7 +9,7 @@ https://moodlehq.github.io/moodle-plugin-ci/
 
 ## Grouping actions
 
-We have 2 types of group actions. lets call these the 'closed' groups and 'open' groups. A closed group is where we know the maximum supported stable and so we can express the group and a range of the earliest and latest supported stable. An open group is one which we do not yet know the upper bound and support may continue for some time, but could also break at any future stable.
+We have 2 types of group actions. Let's call these the 'closed' groups and 'open' groups. A closed group is where we know the maximum supported stable and so we can express the group and a range of the earliest and latest supported stable. An open group is one which we do not yet know the upper bound and support may continue for some time, but could also break at any future stable.
 
 ### Open groups
 
@@ -99,7 +99,7 @@ jobs:
 
 Please note the `extra_plugin_runners` parameter is not required in our case.
 
-If your plugin want more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line in YAML) as a separator. Eg:
+If your plugin requires more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line in YAML) as a separator. Eg:
 
 ```yaml
 test:
