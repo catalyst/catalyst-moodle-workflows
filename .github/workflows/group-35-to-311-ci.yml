@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Create a mtrix to fully test all combinations for version 3.5 (LTS)
+        # Create a matrix to fully test all combinations for version 3.5 (LTS)
         database: ['mariadb', 'pgsql']
         moodle-branch: ['MOODLE_35_STABLE']
         node: ['14.15']
