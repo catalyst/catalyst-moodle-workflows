@@ -3,6 +3,8 @@ name: Moodle plugin CI group for Moodle 3.5 to 3.9
 on:
   workflow_call:
     inputs:
+      extra_php_extensions:
+        type: string
       extra_plugin_runners:
         type: string
       disable_behat:
@@ -76,6 +78,7 @@ jobs:
       - name: Run plugin setup
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
         with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           disable_behat: ${{ inputs.disable_behat }}
           disable_phplint: ${{ inputs.disable_phplint }}

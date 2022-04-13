@@ -1,6 +1,8 @@
 name: 'Plugin setup'
 description: 'Run plugin setup'
 inputs:
+  extra_php_extensions:
+    description: 'List of additional php packages to install'
   extra_plugin_runners:
     description: 'Command to install dependencies'
   disable_behat:
@@ -27,7 +29,7 @@ runs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php }}
-        extensions: pgsql, mysqli, zip, gd, xmlrpc, soap
+        extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
         coverage: none
 
     - name: Configure Required Composer Version
