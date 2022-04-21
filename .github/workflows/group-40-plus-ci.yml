@@ -52,6 +52,8 @@ jobs:
 
     strategy:
       fail-fast: false
+      env:
+        GRUNT_STABLE: 'master'
       matrix:
         database: ['mariadb', 'pgsql']
         moodle-branch: ['master']
