@@ -52,8 +52,6 @@ jobs:
 
     strategy:
       fail-fast: false
-      env:
-        GRUNT_STABLE: 'MOODLE_39_STABLE'
       matrix:
         database: ['mariadb', 'pgsql']
         moodle-branch: [
@@ -87,3 +85,4 @@ jobs:
           disable_phplint: ${{ inputs.disable_phplint }}
           disable_phpunit: ${{ inputs.disable_phpunit }}
           disable_grunt: ${{ inputs.disable_grunt }}
+          highest_moodle_branch: 'MOODLE_39_STABLE'

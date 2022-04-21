@@ -103,7 +103,7 @@ runs:
       shell: bash
 
     - name: Run grunt
-      if: ${{ always() && inputs.disable_grunt != 'true' && matrix.moodle-branch == $GRUNT_STABLE }}
+      if: ${{ always() && inputs.disable_grunt != 'true' && matrix.moodle-branch == inputs.highest_moodle_branch }}
       run: moodle-plugin-ci grunt
       shell: bash
 
