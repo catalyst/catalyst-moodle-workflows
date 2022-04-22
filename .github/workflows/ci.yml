@@ -98,14 +98,6 @@ jobs:
           disable_master: ${{ inputs.disable_master }}
           filter: ${{ inputs.moodle_branches }}
 
-  # fake_test:
-  #   needs: prepare_matrix
-  #   runs-on: 'ubuntu-latest'
-  #   steps:
-  #     - run: |
-  #         echo "testing..."
-  #         exit 0
-
   setup:
     name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}
     needs: prepare_matrix
@@ -158,7 +150,6 @@ jobs:
   fake_release:
     name: release (check test only)
     needs: setup
-    # needs: fake_test
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
     # Patterns allowed:
