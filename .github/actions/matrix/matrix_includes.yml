@@ -1,0 +1,24 @@
+include:
+  # Versions 3.3 - 3.4 are not LTS, so only test a single combo for each.
+  - {moodle-branch: 'MOODLE_33_STABLE', php: '7.1', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_34_STABLE', php: '7.1', node: '14.15', database: 'pgsql'}
+  # Test all combinations for version 3.5 (as it is LTS).
+  - {moodle-branch: 'MOODLE_35_STABLE', php: '7.1', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_35_STABLE', php: '7.1', node: '14.15', database: 'pgsql'}
+  - {moodle-branch: 'MOODLE_35_STABLE', php: '7.2', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_35_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+  # Versions 3.6 - 3.8 are not LTS, so only test a single combo for each.
+  - {moodle-branch: 'MOODLE_36_STABLE', php: '7.1', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_37_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+  - {moodle-branch: 'MOODLE_38_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+  # Also test all variants of 3.9 (LTS).
+  - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_39_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+  - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_39_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+  # 3.10 - 4.00 are not LTS, so only test a single combo for each.
+  - {moodle-branch: 'MOODLE_310_STABLE', php: '7.2', node: '14.15', database: 'pgsql'}
+  - {moodle-branch: 'MOODLE_311_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
+  - {moodle-branch: 'MOODLE_400_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
+  # Always include master (issue #18) - disable-able by config by setting 'disable_master' to true
+  - {moodle-branch: 'master', php: '7.3', node: '14.15', database: 'pgsql'}

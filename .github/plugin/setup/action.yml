@@ -13,6 +13,8 @@ inputs:
     description: 'Option to disable phpunit tests'
   disable_grunt:
     description: 'Option to disable grunt'
+  highest_moodle_branch:
+    description: 'Holds the value of the highest moodle-branch in the test matrix'
 runs:
   using: "composite"
   steps:
@@ -103,7 +105,7 @@ runs:
       shell: bash
 
     - name: Run grunt
-      if: ${{ always() && inputs.disable_grunt != 'true' && matrix.moodle-branch == inputs.highest_moodle_branch }}
+      if: ${{ always() && inputs.disable_grunt != 'true' && inputs.highest_moodle_branch == matrix.moodle-branch }}
       run: moodle-plugin-ci grunt
       shell: bash
 

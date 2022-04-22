@@ -1,0 +1,165 @@
+# .github/workflows/ci.yml
+name: ci
+
+on:
+  workflow_call:
+    inputs:
+      extra_php_extensions:
+        type: string
+      extra_plugin_runners:
+        type: string
+      disable_behat:
+        type: boolean
+      disable_phplint:
+        type: boolean
+      disable_phpunit:
+        type: boolean
+      disable_grunt:
+        type: boolean
+      disable_master:
+        description: 'If true, this will skip testing against moodle/master branch'
+        type: boolean
+      disable_release:
+        description: 'If true, this will skip the release job'
+        type: boolean
+        default: false
+      release_branches:
+        description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
+        type: string
+      moodle_branches:
+        description: 'Specify the MOODLE_XX_STABLE branch you want to test against'
+        type: string
+
+jobs:
+  prepare_matrix:
+    name: prepare test matrix
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    outputs:
+      matrix: ${{ steps.parse-version.outputs.matrix }}
+      component: ${{ steps.parse-version.outputs.component }}
+      highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
+      release_required: ${{ (
+          contains(github.event_name, 'push') &&
+          steps.check-version.outputs.any_changed == 'true' &&
+          steps.check-branch.outputs.publishable == 'true'
+        ) }}
+    steps:
+      - name: Check if currently on a publishable branch
+        id: check-branch
+        run: |
+          publishable=${{ github.event.repository.fork == false &&
+          inputs.disable_release == false  && (
+            (startsWith(github.ref, 'refs/heads/MOODLE_') &&
+            endsWith(github.ref, '_STABLE')) ||
+            github.ref == 'refs/heads/main' || (
+              inputs.release_branches != '' &&
+              endsWith(github.ref, inputs.release_branches)
+            )
+          ) }}
+
+          echo '::set-output name=publishable::$publishable'
+      - name: Check out CI code
+        uses: actions/checkout@v2
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: main
+          token: ${{ github.token }}
+      - name: Check out plugin code
+        uses: actions/checkout@v2
+        with:
+          # Needed for 'changed-files' actions (alternatively could be a fixed
+          # large number but may cause issues if limited).
+          fetch-depth: ${{ (contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true') && 0 || 1 }}
+          path: plugin
+      - name: Check if release is required (version.php changes)
+        if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
+        uses: tj-actions/changed-files@v18.7
+        id: check-version
+        with:
+          path: plugin
+          files: version.php
+          since_last_remote_commit: "true"
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          # extensions: yaml # FYI: makes the workflow very slow
+      - name: Determine test requirements and plugin info
+        id: parse-version
+        run: |
+          chmod +x "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
+          "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
+        env:
+          disable_master: ${{ inputs.disable_master }}
+          filter: ${{ inputs.moodle_branches }}
+
+  setup:
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}
+    needs: prepare_matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    services:
+      postgres:
+        image: postgres:10
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: mariadb:10.5
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Run plugin setup
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          disable_behat: ${{ inputs.disable_behat }}
+          disable_phplint: ${{ inputs.disable_phplint }}
+          disable_phpunit: ${{ inputs.disable_phpunit }}
+          disable_grunt: ${{ inputs.disable_grunt }}
+          highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+
+  fake_release:
+    name: release (check test only)
+    needs: setup
+    # If it matches a standard branch naming convention, it should permit a
+    # release to happen, otherwise this step should be skipped.
+    # Patterns allowed:
+    # - MOODLE_XX_STABLE
+    # - MOODLE_XXX_STABLE
+    # - main
+    if: needs.prepare_matrix.outputs.release_required == 'true'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - run: |
+          echo "Only testing if releasing would occur. This step will always succeed."
+          exit 0
+
