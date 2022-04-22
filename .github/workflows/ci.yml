@@ -29,6 +29,10 @@ on:
       moodle_branches:
         description: 'Specify the MOODLE_XX_STABLE branch you want to test against'
         type: string
+    secrets:
+      moodle_org_token:
+        required: false
+        default: ''
 
 jobs:
   prepare_matrix:
@@ -147,8 +151,8 @@ jobs:
           disable_grunt: ${{ inputs.disable_grunt }}
           highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
 
-  fake_release:
-    name: release (check test only)
+  release:
+    name: Release to the Moodle plugin directory
     needs: setup
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
@@ -156,10 +160,11 @@ jobs:
     # - MOODLE_XX_STABLE
     # - MOODLE_XXX_STABLE
     # - main
-    if: needs.prepare_matrix.outputs.release_required == 'true'
+    if: needs.prepare_matrix.outputs.release_required == 'true' && secrets.MOODLE_ORG_TOKEN != ''
     runs-on: 'ubuntu-latest'
     steps:
-      - run: |
-          echo "Only testing if releasing would occur. This step will always succeed."
-          exit 0
-
+      - name: Run plugin release
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+        with:
+          plugin_name: ${{ needs.prepare_matrix.outputs.component }}
+          moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
