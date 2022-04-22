@@ -49,9 +49,7 @@ define('MATURITY_STABLE',   200);
 define('ANY_VERSION', 'any');
 
 $plugin = new \stdClass();
-
 require_once($versionFilePath);
-
 
 // All supported matrix includes:
 $matrixYaml = file_get_contents("$workspace/ci/.github/actions/matrix/matrix_includes.yml");
