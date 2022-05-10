@@ -101,7 +101,7 @@ runs:
 
     - name: Run mustache
       if: ${{ always() }}
-      run: moodle-plugin-ci phpcpd || true
+      run: moodle-plugin-ci mustache
       shell: bash
 
     - name: Run grunt
