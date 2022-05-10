@@ -101,7 +101,7 @@ runs:
 
     - name: Run mustache
       if: ${{ always() }}
-      run: moodle-plugin-ci mustache
+      run: moodle-plugin-ci mustache || true
       shell: bash
 
     - name: Run grunt
@@ -131,4 +131,10 @@ runs:
     - name: PHP Mess Detector
       if: ${{ always() }}
       run: moodle-plugin-ci phpmd || true
+      shell: bash
+
+    - name: Moodle PHPDoc Checker
+      if: ${{ always() }}
+      # Run this check and only fail CI if it's on 4.0+ / master
+      run: moodle-plugin-ci phpdoc || !(matrix.moodle-branch == 'MOODLE_400_STABLE' || matrix.moodle-branch == 'master')
       shell: bash
