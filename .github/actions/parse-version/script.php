@@ -60,7 +60,7 @@ $matrix = Yaml::parse($matrixYaml);
 $updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.3'), true);
 $updates = $updates['updates']['core'] ?? [];
 
-$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates) {
+$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
     // Regex and replacement templates - Partially generated from https://regex101.com/
     $re = '/MOODLE_(.*)_STABLE/m';
     $subst = '$1';
@@ -70,13 +70,30 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     // If a fixed support range is set, use this.
     if (!empty($plugin->supported)) {
         [$lower, $upper] = $plugin->supported;
+        // If within permitted ranges, e.g. 36 is between [35, 39], include it.
         if ($lower <= $coreVersion && $coreVersion <= $upper) {
             return true;
         }
-        // For non master branches, immediately return false as they should not be included in the run.
-        if ($entry['moodle-branch'] !== 'master') {
-            return false;
+
+        // If this iteration is on master, check if the upper supported value implies master should be tested or not.
+        // e.g. for [35, 500], 500 doesn't exist as a included matrix entry, so treat it like 'master'.
+        if ($entry['moodle-branch'] === 'master') {
+            // If the upper range does NOT exist in the matrix, then assume the user wants the master to be tested.
+            $exists = false;
+            foreach ($matrix['include'] as $row) {
+                $currentVersion = preg_replace($re, $subst, $row['moodle-branch']); // e.g. 39, 310, 311, 400, etc.
+                if ($currentVersion == $upper) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                return true;
+            }
         }
+
+        // For everything else, exclude it, since $plugin->supported implies a closed range.
+        return false;
     }
 
     if (isset($_SERVER['INPUT_FILTER'])) {

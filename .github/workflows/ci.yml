@@ -35,7 +35,24 @@ on:
         default: ''
 
 jobs:
+  pre_job:
+   name: check if job needs to run
+   runs-on: ubuntu-latest
+   # Map a step output to a job output
+   outputs:
+     should_skip: ${{ steps.skip_check.outputs.should_skip }}
+   steps:
+     - id: skip_check
+       # docs: https://github.com/fkirc/skip-duplicate-actions#skip-concurrent-workflow-runs
+       uses: fkirc/skip-duplicate-actions@master
+       with:
+         # Do not trust previous successful runs
+         skip_after_successful_duplicate: false
+         # Ensure should_skip is true only if 2 concurrent workflows are working on the same files (content)
+         concurrent_skipping: 'same_content_newer'
   prepare_matrix:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
     name: prepare test matrix
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
@@ -105,6 +122,7 @@ jobs:
   setup:
     name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}
     needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
@@ -160,7 +178,7 @@ jobs:
     # - MOODLE_XX_STABLE
     # - MOODLE_XXX_STABLE
     # - main
-    if: needs.prepare_matrix.outputs.release_required == 'true' && secrets.MOODLE_ORG_TOKEN != ''
+    if: needs.pre_job.outputs.should_skip != 'true' && needs.prepare_matrix.outputs.release_required == 'true' && secrets.MOODLE_ORG_TOKEN != ''
     runs-on: 'ubuntu-latest'
     steps:
       - name: Run plugin release
