@@ -8,7 +8,31 @@ https://moodlehq.github.io/moodle-plugin-ci/
 
 ## :rocket: Quick start
 
-### Adding the workflow
+For most plugins, you'll want to go through this checklist:
+
+1. Ensure branch section in `README.md` describes correct versions supported
+2. Supported range in `version.php` has been configured correctly
+3. Workflow file has been added `.github/workflows/ci.yml` and configured
+4. CI badge has been properly referenced in the `README.md`
+
+Some examples of usage: [tool_mfa](https://github.com/catalyst/moodle-tool_mfa#branches), [tool_dataflows](https://github.com/catalyst/moodle-tool_dataflows/#branches)
+
+
+### Configure support range
+
+Each plugin should have a measurable range of versions supported. It's recommended and ensures a predictable test range.
+
+1. Open `version.php` in your plugin repository
+2. Set the `$plugin->supported` as the range the plugin supports, which then determines the versions the workflow tests for.
+
+```php
+# version.php
+$plugin->supported = [35, 401];
+```
+This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml)
+
+
+### Add the workflow
 
 For most cases, this following demonstrates how your workflow file would typically look.
 
@@ -23,8 +47,8 @@ on: [push, pull_request]
 jobs:
   ci:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
-    secrets:
-      # Required if you plan to publish (uncomment the below)
+    # Required if you plan to publish (uncomment the below)
+    # secrets:
       # moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
     with:
       # Any further options in this section
@@ -38,7 +62,8 @@ You can add extra options to disable checks that you might not want, or to add a
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 ```
 
-### `with` options
+
+#### `with` options
 
 Below lists the available inputs which are _all optional_:
 
@@ -52,7 +77,16 @@ Below lists the available inputs which are _all optional_:
 | disable_master       | If `true`, this will skip testing against moodle/master branch |
 | disable_release      | If `true`, this will skip the release job |
 | release_branches     | Name of the non-standardly named branch which should run the release job |
-| moodle_branches      | Specify the MOODLE_XX_STABLE branch you specifically want to test against |
+| moodle_branches      | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range. |
+
+### Add CI badge
+
+With badges, we will be able to see at a glance from the plugin's `README.md` whether or not the plugin is in a good state for usage.
+
+```
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/catalyst/:plugin/ci/:branch?label=ci)
+```
+Please update `:plugin` and `:branch` in the example above. This goes under the plugin title. Here is an example from [tool_excimer](https://github.com/catalyst/moodle-tool_excimer/blob/MOODLE_35_STABLE/README.md?plain=1) ![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/catalyst/moodle-tool_excimer/ci/MOODLE_35_STABLE?label=ci)
 
 ## How does this automate tests?
 When you call the reusable ci, it will:
