@@ -92,7 +92,7 @@ Please update `:plugin` and `:branch` in the example above. This goes under the 
 ## How does this automate tests?
 When you call the reusable ci, it will:
 1. a check to see what versions of moodle should run, based on the `version.php` file included in the plugin repository.
-2. This will then build out the combination of tests to run, performing the tests based on the __MOODLE_XX_STABLE__ version affected and will handle any version specific caveats and run optimisations for you.
+2. This will then build out the combination of tests to run, performing the tests based on the __MOODLE_XX_STABLE__ version affected and will handle any version specific caveats and run a more optimally configured test suite for you.
 
 To view or modify the full matrix, please see it here: [.github/actions/matrix/matrix_includes.yml](.github/actions/matrix/matrix_includes.yml)
 
