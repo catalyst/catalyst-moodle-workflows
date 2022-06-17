@@ -6,83 +6,42 @@ This massively reduces the amount of boilerplate setup in each plugin to the bar
 
 https://moodlehq.github.io/moodle-plugin-ci/
 
+## :rocket: Quick start
 
-## Grouping actions
+For most plugins, you'll want to go through this checklist:
 
-We have 2 types of group actions. Let's call these the 'closed' groups and 'open' groups. A closed group is where we know the maximum supported stable and so we can express the group and a range of the earliest and latest supported stable. An open group is one which we do not yet know the upper bound and support may continue for some time, but could also break at any future stable.
+1. Ensure branch section in `README.md` describes correct versions supported
+2. Supported range in `version.php` has been configured correctly
+3. Workflow file has been added `.github/workflows/ci.yml` and configured
+4. CI badge has been properly added in the `README.md`
 
-### Open groups
+Some examples of usage: [tool_mfa](https://github.com/catalyst/moodle-tool_mfa#branches), [tool_dataflows](https://github.com/catalyst/moodle-tool_dataflows/#branches)
 
-| Moodle version    | CI group              |  Plugin release group       |
-|-------------------|-----------------------|-----------------------------|
-| Moodle 3.3+       | group-33-plus-ci.yml  | group-33-plus-release.yml   |
-| Moodle 3.4+       | group-34-plus-ci.yml  | group-34-plus-release.yml   |
-| Moodle 3.5+       | group-35-plus-ci.yml  | group-35-plus-release.yml   |
-| Moodle 3.6+       | group-36-plus-ci.yml  | group-36-plus-release.yml   |
-| Moodle 3.7+       | group-37-plus-ci.yml  | group-37-plus-release.yml   |
-| Moodle 3.8+       | group-34-plus-ci.yml  | group-38-plus-release.yml   |
-| Moodle 3.9+       | group-39-plus-ci.yml  | group-39-plus-release.yml   |
-| Moodle 3.10+      | group-310-plus-ci.yml | group-310-plus-release.yml  |
-| Moodle 3.11+      | group-311-plus-ci.yml | group-311-plus-release.yml  |
-| Moodle 4.0+       | group-40-plus-ci.yml  | group-40-plus-release.yml   |
 
-### Closed groups
+### Configure support range
 
-| Moodle version     | CI group                |  Plugin release group       |
-|--------------------|-------------------------|-----------------------------|
-| Moodle 2.7 - 3.2   |                         | group-27-to-32-release.yml  |
-| Moodle 3.3 - 3.8   | group-33-to-38-ci.yml   | group-33-to-38-release.yml  |
-| Moodle 3.3 - 3.9   | group-33-to-39-ci.yml   | group-33-to-39-release.yml  |
-| Moodle 3.4 - 3.8   | group-34-to-38-ci.yml   |                             |
-| Moodle 3.4 - 3.9   | group-34-to-39-ci.yml   |                             |
-| Moodle 3.5 - 3.9   | group-35-to-39-ci.yml   | group-35-to-39-release.yml  |
-| Moodle 3.5 - 3.10  | group-35-to-310-ci.yml  |                             |
-| Moodle 3.5 - 3.11  | group-35-to-311-ci.yml  |                             |
+Each plugin should have a measurable range of versions supported. It's recommended and ensures a predictable test range.
 
-## Using a Reusable Workflow
-Now that we have our reusable workflow ready, it is time to use it in another workflow.
+1. Open `version.php` in your plugin repository
+2. Set the `$plugin->supported`* as the range the plugin supports, which then determines the versions the workflow tests for.
 
-To do so, just add it directly in a `job` of your workflow with this syntax:
-
-```yaml
- job_name:
-    uses: USER_OR_ORG_NAME/REPO_NAME/.github/workflows/REUSABLE_WORKFLOW_FILE.yml@TAG_OR_BRANCH
-
+```php
+# version.php
+$plugin->supported = [35, 401];
 ```
+This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml).
 
-Let's analyse this:
-- You create a `job` with no steps
-- You don't need to add a "runs-on" clause, because it is contained in the reusable workflow
-- You reference it as "uses" passing:
-- the name of the user or organization that owns the repo where the reusable workflow is stored
-- the repo name
-- the base folder
-- the name of the reusable workflow yaml file
-- and the tag or the branch where the file is store (if you haven't created a tag/version for it)
+Any number _greater_ than the [latest available stable branch](https://github.com/moodle/moodle/branches/active) will automatically include the [master branch](https://github.com/moodle/moodle/tree/master) for testing
 
-In real example above, this is how I'd reference it in a job called group-35-plus-ci.yml:
+\* For more info on the `$plugin->supported` field, please see https://docs.moodle.org/dev/version.php
 
-```yaml
-test:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
-```
 
-Now of course we have to pass the parameters. Let's start with the inputs:
+### Add the workflow
 
-```yaml
-with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-```
-
-As you can see, we just use the "with" clause, and we specify the name of the inputs.
-
-## How to call reusable workflow for CI in plugin?
+For most cases, this following demonstrates how your workflow file would typically look.
 
 Create `.github/workflows/ci.yml` with the below template in your plugin
-repository. Change the targetted CI group file (here it is using
-`group-310-plus-ci.yml`) based on your plugin support.
-
-
+repository.
 ```yaml
 # .github/workflows/ci.yml
 name: ci
@@ -90,87 +49,84 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  test:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
+  ci:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
+    # Required if you plan to publish (uncomment the below)
+    # secrets:
+      # moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
     with:
+      # Any further options in this section
+```
+For how to set up the secret, please see the [_How does this automate releases_](#how-does-this-automate-releases) section below.
+
+You can add extra options to disable checks that you might not want, or to add additional dependencies under the `with` field. For example:
+```yaml
+    with:
+      disable_behat: true
+      disable_grunt: true
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
-
 ```
 
-Please note the `extra_plugin_runners` parameter is not required in our case.
 
-If your plugin requires more than one plugin to be installed as a dependency, then you can add another plugin command by using "|" (which represents new line in YAML) as a separator. Eg:
+#### `with` options
 
-```yaml
-test:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-310-plus-ci.yml@main
-    with:
-      extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws | moodle-plugin-ci add-plugin catalyst/moodle-mod_attendance'
+Below lists the available inputs which are _all optional_:
+
+| Inputs               | Description                                |
+|----------------------|--------------------------------------------|
+| extra_plugin_runners | Command to install additional dependencies |
+| disable_behat        | Set `true` to disable behat tests.         |
+| disable_phplint      | Set `true` to disable phplint tests.       |
+| disable_phpunit      | Set `true` to disable phpunit tests.       |
+| disable_grunt        | Set `true` to disable grunt.               |
+| disable_master       | If `true`, this will skip testing against moodle/master branch |
+| disable_release      | If `true`, this will skip the release job |
+| release_branches     | Name of the non-standardly named branch which should run the release job |
+| moodle_branches      | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range. |
+
+### Add CI badge
+
+With badges, we will be able to see at a glance from the plugin's `README.md` whether or not the plugin is in a good state for usage.
+
 ```
-Here is an another full example which doesn't need extra plugins.
-
-```yaml
-# .github/workflows/ci.yml
-name: ci
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-ci.yml@main
-
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/catalyst/:plugin/ci/:branch?label=ci)
 ```
-Below is the list of available inputs (all optional) for CI:
+Please update `:plugin` and `:branch` in the example above. This goes under the plugin title. Here is an example from [tool_excimer](https://github.com/catalyst/moodle-tool_excimer/blob/MOODLE_35_STABLE/README.md?plain=1) ![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/catalyst/moodle-tool_excimer/ci/MOODLE_35_STABLE?label=ci)
 
-| Inputs                  | Description                                |
-|-------------------------|--------------------------------------------|
-| extra_plugin_runners    | Command to install additional dependencies |
-| disable_behat           | Set `true` to disable behat tests.         |
-| disable_phplint         | Set `true` to disable phplint tests.       |
-| disable_phpunit         | Set `true` to disable phpunit tests.       |
-| disable_grunt           | Set `true` to disable grunt.               |
+## How does this automate tests?
+When you call the reusable ci, it will:
+1. a check to see what versions of moodle should run, based on the `version.php` file included in the plugin repository.
+2. This will then build out the combination of tests to run, performing the tests based on the __MOODLE_XX_STABLE__ version affected and will handle any version specific caveats and run a more optimally configured test suite for you.
 
+To view or modify the full matrix, please see it here: [.github/actions/matrix/matrix_includes.yml](.github/actions/matrix/matrix_includes.yml)
 
-## How to call reusable workflow for plugin moodle release?
+## How does this automate releases?
 
-Create `.github/workflows/moodle-release.yml` using the template below in your plugin repository. Change the targetted moodle release group file based on your plugin
-support - in this example, `group-35-plus-release.yml` is chosen. This workflow
-is used to automatically generate and publish releases to the plugins directory.
+Whenever a change is made to version.php, the workflow is triggered on a release branch (e.g. __main__ / __MOODLE_XX_STABLE__), and tests pass, will it attempt to run the plugin/release action `.github/plugin/release/action.yml`. Doing so will automatically publish a release to the Moodle plugin directory at https://moodle.org/plugins.
 
-```yaml
-# .github/workflows/moodle-release.yml
-name: Releasing in the Plugins directory
+In the prepare step of the CI, it will have resolved the component name for you so you don't need to enter one manually, and the `MOODLE_ORG_TOKEN` secret should be set otherwise the plugin won't be published.
 
-on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'version.php'
-
-jobs:
-  release:
-    uses: catalyst/catalyst-moodle-workflows/.github/workflows/group-35-plus-release.yml@main
-    with:
-      plugin_name: auth_enrolkey
-    secrets:
-      moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
-```
-Whenever version.php is changed, add the latest version to the Moodle Plugins directory at https://moodle.org/plugins.
-
-You **MUST** update below items for each plugin
-* `branches` - Add branches you wish to publish into Moodle Plugins directory. In this example, release workflow will trigger on a **push** event to the master branch.
-* `plugin_name` - Update this to the **frankenstyle** plugin name (located in `version.php` of the plugin folder)
-
-Also please note:
+To configure the secret:
 * Please check `MOODLE_ORG_TOKEN` is available in your plugin's **Settings > Secrets** section. If not, please create using below steps:
   * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
   * Locate the **Navigation block > Plugins > API access**.
     * Use that page to generate your personal token for the `plugins_maintenance` service.
   * Go back to your plugin repository at Github. Locate your plugin's **Settings > Secrets** section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
-* To release in plugin directory we **MUST** bump plugin version. For the older stables with closed groups, please ensure the version is only a <ins>**micro bump**</ins>.
+* For the latest branch/stable releases in plugin directory we **MUST** bump plugin version (e.g. by date).
+* For the __older stables__ with closed groups, the version **MUST** be a <ins>**micro bump**</ins>.
 
-## My Repo is complicated!
+## Common concerns / issues
+
 ### Core patches
 If you need to apply core patches to the moodle code to allow the plugin to work on older versions missing API support, this can be achieved by outputting
 an appliable diff to a file, in the `patch` directory in the top level of the repo. The version for a particular branch should be named `MOODLE_XX_STABLE.diff` in line with the naming of the branch. To generate a diff, these patches can be manually applied to the target branch, and a diff from the remote generated by doing `git format-patch MOODLE_XX_STABLE --stdout > my/plugin/path/patch/MOODLE_XX_STABLE.diff`.
+
+### amd / grunt bundling issues
+
+Depending on your supported range, you might encounter an issue which outputs something along the lines of `File is stale and needs to be rebuilt`. The brief reason for this, is that along the way, Moodle has updated the way it bundles JS/CSS files, which results in different outputs across Moodle versions.
+
+To fix this, you'll need to rebundle the relevant files, on the <ins>highest supported version of Moodle</ins> for your plugin's support range. For example, if the plugin supports up to __Moodle 4.0__, you'll need to bundle the changes, while on the `MOODLE_400_STABLE` branch of Moodle, and then commit those changes.
+
+__NOTE:__ This may involve having a clean copy of Moodle and installing the plugin code to run the necessary commands to rebuild the _stale_ files.
+
+Grunt docs: https://docs.moodle.org/dev/Grunt#Running_grunt
