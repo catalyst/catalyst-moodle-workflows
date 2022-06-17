@@ -32,7 +32,6 @@ on:
     secrets:
       moodle_org_token:
         required: false
-        default: ''
 
 jobs:
   pre_job:
@@ -178,11 +177,21 @@ jobs:
     # - MOODLE_XX_STABLE
     # - MOODLE_XXX_STABLE
     # - main
-    if: needs.pre_job.outputs.should_skip != 'true' && needs.prepare_matrix.outputs.release_required == 'true' && secrets.MOODLE_ORG_TOKEN != ''
+    if: needs.pre_job.outputs.should_skip != 'true' && needs.prepare_matrix.outputs.release_required == 'true'
     runs-on: 'ubuntu-latest'
+    outputs:
+      has-secrets: ${{ steps.check-secrets.outputs.has-secrets }}
     steps:
+      - name: Check if MOODLE_ORG_TOKEN has been supplied
+        id: check-secrets
+        env:
+          SECRET_TO_CHECK: '${{ secrets.moodle_org_token }}'
+        if: ${{ env.SECRET_TO_CHECK != '' }}
+        run: echo "::set-output name=has-secrets::true"
+
       - name: Run plugin release
+        if: steps.check-secrets.outputs.has-secrets != ''
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
-          moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
+          moodle_org_token: ${{ secrets.moodle_org_token }}
