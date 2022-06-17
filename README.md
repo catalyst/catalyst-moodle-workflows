@@ -53,6 +53,7 @@ jobs:
     with:
       # Any further options in this section
 ```
+For how to set up the secret, please see the [_How does this automate releases_](#how-does-this-automate-releases) section below.
 
 You can add extra options to disable checks that you might not want, or to add additional dependencies under the `with` field. For example:
 ```yaml
