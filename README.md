@@ -23,13 +23,15 @@ Some examples of usage: [tool_mfa](https://github.com/catalyst/moodle-tool_mfa#b
 Each plugin should have a measurable range of versions supported. It's recommended and ensures a predictable test range.
 
 1. Open `version.php` in your plugin repository
-2. Set the `$plugin->supported` as the range the plugin supports, which then determines the versions the workflow tests for.
+2. Set the `$plugin->supported`* as the range the plugin supports, which then determines the versions the workflow tests for.
 
 ```php
 # version.php
 $plugin->supported = [35, 401];
 ```
 This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml)
+
+\* For more info on the `$plugin->supported` field, please see https://docs.moodle.org/dev/version.php
 
 
 ### Add the workflow
