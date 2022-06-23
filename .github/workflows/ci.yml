@@ -101,8 +101,8 @@ jobs:
         id: check-version
         with:
           path: plugin
-          files: version.php
-          since_last_remote_commit: "true"
+          files: |
+            version.php
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
