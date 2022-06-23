@@ -103,6 +103,7 @@ jobs:
           path: plugin
           files: version.php
           since_last_remote_commit: "true"
+          fetch-depth: 2
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
