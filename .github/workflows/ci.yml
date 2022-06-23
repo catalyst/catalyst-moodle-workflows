@@ -80,7 +80,7 @@ jobs:
             )
           ) }}
 
-          echo '::set-output name=publishable::$publishable'
+          echo "::set-output name=publishable::$publishable"
       - name: Check out CI code
         uses: actions/checkout@v2
         with:
