@@ -193,6 +193,8 @@ jobs:
       - name: Run plugin release
         if: steps.check-secrets.outputs.has-secrets != ''
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+        env:
+          PLUGIN_NAME: ${{ needs.prepare_matrix.outputs.component }}
         with:
-          plugin_name: ${{ needs.prepare_matrix.outputs.component }}
+          plugin_name: ${{ env.PLUGIN_NAME }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
