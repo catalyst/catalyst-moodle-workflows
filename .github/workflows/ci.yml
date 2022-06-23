@@ -93,7 +93,7 @@ jobs:
         with:
           # Needed for 'changed-files' actions (alternatively could be a fixed
           # large number but may cause issues if limited).
-          fetch-depth: ${{ (contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true') && 0 || 1 }}
+          fetch-depth: ${{ ((contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true')) && 0 || 1 }}
           path: plugin
       - name: Check if release is required (version.php changes)
         if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
@@ -103,7 +103,6 @@ jobs:
           path: plugin
           files: version.php
           since_last_remote_commit: "true"
-          fetch-depth: 2
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
