@@ -97,12 +97,13 @@ jobs:
           path: plugin
       - name: Check if release is required (version.php changes)
         if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
-        uses: tj-actions/changed-files@v18.7
+        uses: tj-actions/changed-files@v23
         id: check-version
         with:
           path: plugin
           files: |
             version.php
+          since_last_remote_commit: "true"
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
