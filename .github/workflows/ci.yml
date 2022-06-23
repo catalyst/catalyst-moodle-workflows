@@ -171,7 +171,7 @@ jobs:
 
   release:
     name: Release to the Moodle plugin directory
-    needs: setup
+    needs: [setup, prepare_matrix]
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
     # Patterns allowed:
@@ -193,8 +193,6 @@ jobs:
       - name: Run plugin release
         if: steps.check-secrets.outputs.has-secrets != ''
         uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
-        env:
-          PLUGIN_NAME: ${{ needs.prepare_matrix.outputs.component }}
         with:
-          plugin_name: ${{ env.PLUGIN_NAME }}
+          plugin_name: ${{ needs.prepare_matrix.outputs.component }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
