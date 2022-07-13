@@ -72,17 +72,18 @@ You can add extra options to disable checks that you might not want, or to add a
 
 Below lists the available inputs which are _all optional_:
 
-| Inputs               | Description                                |
-|----------------------|--------------------------------------------|
-| extra_plugin_runners | Command to install additional dependencies |
-| disable_behat        | Set `true` to disable behat tests.         |
-| disable_phplint      | Set `true` to disable phplint tests.       |
-| disable_phpunit      | Set `true` to disable phpunit tests.       |
-| disable_grunt        | Set `true` to disable grunt.               |
-| disable_master       | If `true`, this will skip testing against moodle/master branch |
-| disable_release      | If `true`, this will skip the release job |
-| release_branches     | Name of the non-standardly named branch which should run the release job |
-| moodle_branches      | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range. |
+| Inputs                   | Description                                |
+|--------------------------|--------------------------------------------|
+| codechecker_max_warnings | To fail on warnings, set this to 0         |
+| extra_plugin_runners     | Command to install more dependencies       |
+| disable_behat            | Set `true` to disable behat tests.         |
+| disable_phplint          | Set `true` to disable phplint tests.       |
+| disable_phpunit          | Set `true` to disable phpunit tests.       |
+| disable_grunt            | Set `true` to disable grunt.               |
+| disable_master           | If `true`, this will skip testing against moodle/master branch |
+| disable_release          | If `true`, this will skip the release job |
+| release_branches         | Name of the non-standardly named branch which should run the release job |
+| moodle_branches          | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range. |
 
 ### Add CI badge
 

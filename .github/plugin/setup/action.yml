@@ -1,6 +1,9 @@
 name: 'Plugin setup'
 description: 'Run plugin setup'
 inputs:
+  codechecker_max_warnings:
+    description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
+    default: '-1'
   extra_php_extensions:
     description: 'List of additional php packages to install'
   extra_plugin_runners:
@@ -86,7 +89,7 @@ runs:
 
     - name: Run codechecker
       if: ${{ always() }}
-      run: moodle-plugin-ci codechecker
+      run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
       shell: bash
 
     - name: Run validate
