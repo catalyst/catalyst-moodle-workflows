@@ -21,4 +21,4 @@ include:
   - {moodle-branch: 'MOODLE_311_STABLE', php: '7.3', node: '14.15', database: 'mariadb'}
   - {moodle-branch: 'MOODLE_400_STABLE', php: '7.3', node: '14.15', database: 'pgsql'}
   # Always include master (issue #18) - disable-able by config by setting 'disable_master' to true
-  - {moodle-branch: 'master', php: '7.3', node: '14.15', database: 'pgsql'}
+  - {moodle-branch: 'master', php: '7.4', node: '14.15', database: 'pgsql'}
