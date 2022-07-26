@@ -10,6 +10,8 @@ inputs:
     description: 'Command to install dependencies'
   disable_behat:
     description: 'Option to disable behat tests'
+  disable_mustache:
+    description: 'Option to disable mustache tests'
   disable_phplint:
     description: 'Option to disable phplint tests'
   disable_phpunit:
@@ -103,8 +105,8 @@ runs:
       shell: bash
 
     - name: Run mustache
-      if: ${{ always() }}
-      run: moodle-plugin-ci mustache || true
+      if: ${{ always() && inputs.disable_mustache != 'true' }}
+      run: moodle-plugin-ci mustache
       shell: bash
 
     - name: Run grunt

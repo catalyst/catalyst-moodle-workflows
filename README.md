@@ -80,6 +80,7 @@ Below lists the available inputs which are _all optional_:
 | disable_phplint          | Set `true` to disable phplint tests.       |
 | disable_phpunit          | Set `true` to disable phpunit tests.       |
 | disable_grunt            | Set `true` to disable grunt.               |
+| disable_mustache         | Set `true` to disable mustache.            |
 | disable_master           | If `true`, this will skip testing against moodle/master branch |
 | disable_release          | If `true`, this will skip the release job |
 | release_branches         | Name of the non-standardly named branch which should run the release job |

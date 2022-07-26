@@ -14,6 +14,8 @@ on:
         type: string
       disable_behat:
         type: boolean
+      disable_mustache:
+        type: boolean
       disable_phplint:
         type: boolean
       disable_phpunit:
@@ -168,10 +170,11 @@ jobs:
           codechecker_max_warnings: ${{ inputs.codechecker_max_warnings }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          disable_behat: ${{ inputs.disable_behat }}
-          disable_phplint: ${{ inputs.disable_phplint }}
-          disable_phpunit: ${{ inputs.disable_phpunit }}
-          disable_grunt: ${{ inputs.disable_grunt }}
+          disable_behat:    ${{ inputs.disable_behat }}
+          disable_grunt:    ${{ inputs.disable_grunt }}
+          disable_mustache: ${{ inputs.disable_mustache }}
+          disable_phplint:  ${{ inputs.disable_phplint }}
+          disable_phpunit:  ${{ inputs.disable_phpunit }}
           highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
 
   release:
