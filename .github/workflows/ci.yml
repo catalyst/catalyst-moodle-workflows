@@ -90,7 +90,7 @@ jobs:
         with:
           path: ci
           repository: catalyst/catalyst-moodle-workflows
-          ref: main
+          ref: add-db-ver-main-test
           token: ${{ github.token }}
       - name: Check out plugin code
         uses: actions/checkout@v2
@@ -163,7 +163,7 @@ jobs:
           --health-retries 3
     steps:
       - name: Run plugin setup
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@add-db-ver-main-test
         with:
           codechecker_max_warnings: ${{ inputs.codechecker_max_warnings }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
@@ -197,7 +197,7 @@ jobs:
 
       - name: Run plugin release
         if: steps.check-secrets.outputs.has-secrets != ''
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@add-db-ver-main-test
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
