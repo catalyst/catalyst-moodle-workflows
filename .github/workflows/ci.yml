@@ -4,6 +4,11 @@ name: ci
 on:
   workflow_call:
     inputs:
+      internal_workflow_branch:
+        type: string
+        description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
+        default: '64-fix-phpdoc-checks'
+        # default: 'main'
       codechecker_max_warnings:
         type: string
         description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
@@ -90,12 +95,13 @@ jobs:
           ) }}
 
           echo "::set-output name=publishable::$publishable"
+      - uses: actions/checkout@v3
       - name: Check out CI code
         uses: actions/checkout@v2
         with:
           path: ci
           repository: catalyst/catalyst-moodle-workflows
-          ref: main
+          ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Check out plugin code
         uses: actions/checkout@v2
@@ -167,8 +173,15 @@ jobs:
           --health-timeout 5s
           --health-retries 3
     steps:
+      - name: Check out CI code
+        uses: actions/checkout@v2
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
       - name: Run plugin setup
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        uses: ./ci/.github/plugin/setup
         with:
           codechecker_max_warnings: ${{ inputs.codechecker_max_warnings }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
@@ -202,9 +215,17 @@ jobs:
         if: ${{ env.SECRET_TO_CHECK != '' }}
         run: echo "::set-output name=has-secrets::true"
 
+      - name: Check out CI code
+        uses: actions/checkout@v2
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+
       - name: Run plugin release
         if: steps.check-secrets.outputs.has-secrets != ''
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/release@main
+        uses: ./ci/.github/plugin/release
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
