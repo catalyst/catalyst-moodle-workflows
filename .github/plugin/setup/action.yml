@@ -18,6 +18,9 @@ inputs:
     description: 'Option to disable phpunit tests'
   disable_grunt:
     description: 'Option to disable grunt'
+  enable_phpmd:
+    description: 'Option to enable phpmd'
+
   highest_moodle_branch:
     description: 'Holds the value of the highest moodle-branch in the test matrix'
 runs:
@@ -134,8 +137,8 @@ runs:
       shell: bash
 
     - name: PHP Mess Detector
-      if: ${{ always() }}
-      run: moodle-plugin-ci phpmd || true
+      if: ${{ always() && inputs.enable_phpmd == 'true' }}
+      run: moodle-plugin-ci phpmd
       shell: bash
 
     - name: Moodle PHPDoc Checker
