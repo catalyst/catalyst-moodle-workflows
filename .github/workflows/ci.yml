@@ -7,8 +7,7 @@ on:
       internal_workflow_branch:
         type: string
         description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
-        default: '64-fix-phpdoc-checks'
-        # default: 'main'
+        default: 'main'
       codechecker_max_warnings:
         type: string
         description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
