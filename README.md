@@ -77,6 +77,7 @@ Below lists the available inputs which are _all optional_:
 | codechecker_max_warnings | To fail on warnings, set this to 0         |
 | extra_plugin_runners     | Command to install more dependencies       |
 | disable_behat            | Set `true` to disable behat tests.         |
+| disable_phpdoc           | Set `true` to disable phpdoc tests.       |
 | disable_phplint          | Set `true` to disable phplint tests.       |
 | disable_phpunit          | Set `true` to disable phpunit tests.       |
 | disable_grunt            | Set `true` to disable grunt.               |

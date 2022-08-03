@@ -12,6 +12,8 @@ inputs:
     description: 'Option to disable behat tests'
   disable_mustache:
     description: 'Option to disable mustache tests'
+  disable_phpdoc:
+    description: 'Option to disable phpdoc tests'
   disable_phplint:
     description: 'Option to disable phplint tests'
   disable_phpunit:
@@ -158,7 +160,7 @@ runs:
       shell: bash
 
     - name: Moodle PHPDoc Checker
-      if: ${{ always() && inputs.highest_moodle_branch == matrix.moodle-branch }}
+      if: ${{ always() && inputs.disable_phpdoc != 'true' && inputs.highest_moodle_branch == matrix.moodle-branch }}
       # Run this check and only fail CI if it's on 4.0+ / master
       run: |
         # phpdoc checks
