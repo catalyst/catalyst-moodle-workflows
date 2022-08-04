@@ -141,5 +141,5 @@ output('component', $plugin->component);
 
 // Output the highest available moodle branch in this set, which will be used to
 // determine whether or not various tests/tasks will run, such as grunt.
-output('highest_moodle_branch', end($preparedMatrix)['moodle-branch'] ?? '');
+output('highest_moodle_branch', reset($preparedMatrix)['moodle-branch'] ?? '');
 
