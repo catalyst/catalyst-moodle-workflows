@@ -151,12 +151,21 @@ runs:
 
     - name: PHP Copy/Paste Detector
       if: ${{ always() }}
-      run: moodle-plugin-ci phpcpd || true
+      run: |
+        moodle-plugin-ci phpcpd || true
+        echo "Copy/Paste Detector - OK QQ"
       shell: bash
 
     - name: PHP Mess Detector
       if: ${{ always() && inputs.enable_phpmd == 'true' }}
       run: moodle-plugin-ci phpmd
+      shell: bash
+
+    - name: Run Check API QQ
+      if: ${{ always() }}
+      run: |
+        php admin/cli/cron.php
+        echo "Check API - OK"
       shell: bash
 
     - name: Moodle PHPDoc Checker
