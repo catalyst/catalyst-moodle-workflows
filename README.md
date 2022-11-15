@@ -29,7 +29,7 @@ Each plugin should have a measurable range of versions supported. It's recommend
 # version.php
 $plugin->supported = [35, 401];
 ```
-This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml).
+This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](actions/matrix/matrix_includes.yml).
 
 Any number _greater_ than the [latest available stable branch](https://github.com/moodle/moodle/branches/active) will automatically include the [master branch](https://github.com/moodle/moodle/tree/master) for testing
 
@@ -102,7 +102,7 @@ When you call the reusable ci, it will:
 1. a check to see what versions of moodle should run, based on the `version.php` file included in the plugin repository.
 2. This will then build out the combination of tests to run, performing the tests based on the __MOODLE_XX_STABLE__ version affected and will handle any version specific caveats and run a more optimally configured test suite for you.
 
-To view or modify the full matrix, please see it here: [.github/actions/matrix/matrix_includes.yml](.github/actions/matrix/matrix_includes.yml)
+To view or modify the full matrix, please see it here: [actions/matrix/matrix_includes.yml](actions/matrix/matrix_includes.yml)
 
 ## How does this automate releases?
 

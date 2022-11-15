@@ -1,6 +1,6 @@
 <?php
 
-require __DIR__ . '../../../../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use Symfony\Component\Yaml\Yaml;
 
@@ -25,13 +25,13 @@ function output(string $name, string $value) {
 }
 
 // Greet the user.
-echo "Hello from PHP!";
-$workspace = $_SERVER['GITHUB_WORKSPACE'] ?? '';
+echo "Hello from PHP!\n";
+$workspace = $argv[1] ?? '';
 
 // This check is only possible with the version.php file, so end early if it doesn't exist.
 $versionFilePath = "$workspace/plugin/version.php";
 if (!file_exists($versionFilePath)) {
-    echo "version.php does not exist";
+    echo "$versionFilePath does not exist";
     exit(1);
 }
 
@@ -52,7 +52,7 @@ $plugin = new \stdClass();
 require_once($versionFilePath);
 
 // All supported matrix includes:
-$matrixYaml = file_get_contents("$workspace/ci/.github/actions/matrix/matrix_includes.yml");
+$matrixYaml = file_get_contents("$workspace/ci/actions/matrix/matrix_includes.yml");
 $matrix = Yaml::parse($matrixYaml);
 
 // Version breakpoints are sourced from:

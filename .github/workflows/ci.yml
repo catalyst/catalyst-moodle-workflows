@@ -131,8 +131,8 @@ jobs:
       - name: Determine test requirements and plugin info
         id: parse-version
         run: |
-          chmod +x "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
-          "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
+          chmod +x "${GITHUB_WORKSPACE}/ci/actions/parse-version/script.sh"
+          "${GITHUB_WORKSPACE}/ci/actions/parse-version/script.sh" "${GITHUB_WORKSPACE}"
         env:
           disable_master: ${{ inputs.disable_master }}
           filter: ${{ inputs.moodle_branches }}

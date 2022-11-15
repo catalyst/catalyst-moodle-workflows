@@ -8,4 +8,4 @@ echo "Hello from bash!"
 php -v
 
 # Run the PHP script
-php $SCRIPT_DIR/script.php
+php $SCRIPT_DIR/script.php "$1"
