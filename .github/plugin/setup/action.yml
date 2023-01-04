@@ -41,6 +41,7 @@ runs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php }}
+        ini-values: max_input_vars=5000
         extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
         coverage: none
 
