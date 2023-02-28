@@ -87,6 +87,7 @@ Below lists the available inputs which are _all optional_:
 | enable_phpmd             | If `true`, to enable phpmd                 |
 | release_branches         | Name of the non-standardly named branch which should run the release job |
 | moodle_branches          | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range. |
+| min_php                  | The minimum php version to test. Set this to support the minimum php version supported by the plugin. Defaults to '7.1', however more recent Moodle branches only test higher versions. |
 
 ### Add CI badge
 
