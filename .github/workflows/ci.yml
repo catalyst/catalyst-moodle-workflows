@@ -46,6 +46,10 @@ on:
       moodle_branches:
         description: 'Specify the MOODLE_XX_STABLE branch you want to test against'
         type: string
+      min_php:
+        description: 'Specify the minimum version of PHP to test against. Will exclude workflows using older versions of PHP.'
+        type: string
+        default: '7.1'
     secrets:
       moodle_org_token:
         required: false
@@ -88,7 +92,7 @@ jobs:
         id: check-branch
         run: |
           publishable=${{ github.event.repository.fork == false &&
-          inputs.disable_release == false  && (
+          inputs.disable_release == false && (
             (startsWith(github.ref, 'refs/heads/MOODLE_') &&
             endsWith(github.ref, '_STABLE')) ||
             github.ref == 'refs/heads/main' || (
@@ -136,6 +140,7 @@ jobs:
         env:
           disable_master: ${{ inputs.disable_master }}
           filter: ${{ inputs.moodle_branches }}
+          min_php: ${{ inputs.min_php }}
 
   setup:
     name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}

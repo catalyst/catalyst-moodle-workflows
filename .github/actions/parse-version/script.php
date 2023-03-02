@@ -65,7 +65,12 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     $re = '/MOODLE_(.*)_STABLE/m';
     $subst = '$1';
     $coreVersion = preg_replace($re, $subst, $entry['moodle-branch']);
-    $disable_master = !empty($_SERVER['INPUT_DISABLE_MASTER']);
+    $disable_master = !empty($_SERVER['disable_master']);
+
+    // Check that the php version for the workflow is higher than the minimum set by the option.
+    if ($_SERVER['min_php'] > $entry['php']) {
+        return false;
+    }
 
     // If a fixed support range is set, use this.
     if (!empty($plugin->supported)) {
@@ -96,10 +101,10 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
         return false;
     }
 
-    if (isset($_SERVER['INPUT_FILTER'])) {
-        $filter = $_SERVER['INPUT_FILTER'];
+    if (isset($_SERVER['filter'])) {
+        $filter = $_SERVER['filter'];
         $filter = preg_split('/\s+/', $filter);
-        // Otherwise if not defined, it should check if the INPUT_FILTER variable has been provided, and use the matching versions there instead.
+        // Otherwise if not defined, it should check if the 'filter' variable has been provided, and use the matching versions there instead.
         if (in_array($entry['moodle-branch'], $filter)) {
             return true;
         }
@@ -142,4 +147,3 @@ output('component', $plugin->component);
 // Output the highest available moodle branch in this set, which will be used to
 // determine whether or not various tests/tasks will run, such as grunt.
 output('highest_moodle_branch', reset($preparedMatrix)['moodle-branch'] ?? '');
-
