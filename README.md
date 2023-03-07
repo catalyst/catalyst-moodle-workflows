@@ -94,9 +94,9 @@ Below lists the available inputs which are _all optional_:
 With badges, we will be able to see at a glance from the plugin's `README.md` whether or not the plugin is in a good state for usage.
 
 ```
-![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/catalyst/:plugin/ci.yml?label=ci&branch=:branch)
+![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/:user/:plugin/ci.yml?label=ci&branch=:branch)
 ```
-Please update `:plugin` and `:branch` in the example above. This goes under the plugin title. Here is an example from [tool_excimer](https://github.com/catalyst/moodle-tool_excimer/blob/MOODLE_35_STABLE/README.md?plain=1) ![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/catalyst/moodle-tool_excimer/ci.yml?label=ci&branch=MOODLE_35_STABLE)
+Please update `:user`, `:plugin` and `:branch` in the example above. This goes under the plugin title. Here is an example from [tool_excimer](https://github.com/catalyst/moodle-tool_excimer/blob/MOODLE_35_STABLE/README.md?plain=1) ![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/catalyst/moodle-tool_excimer/ci.yml?label=ci&branch=MOODLE_35_STABLE)
 
 ## How does this automate tests?
 When you call the reusable ci, it will:
