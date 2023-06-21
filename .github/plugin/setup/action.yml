@@ -22,8 +22,8 @@ inputs:
     description: 'Option to disable grunt'
   enable_phpmd:
     description: 'Option to enable phpmd'
-  enable_phpcpd:
-    description: 'Option to enable phpcpd'
+  disable_phpcpd:
+    description: 'Option to disable phpcpd'
 
   highest_moodle_branch:
     description: 'Holds the value of the highest moodle-branch in the test matrix'
@@ -153,7 +153,7 @@ runs:
       shell: bash
 
     - name: PHP Copy/Paste Detector
-      if: ${{ always() && inputs.enable_phpcpd == 'true' }}
+      if: ${{ always() && inputs.disable_phpcpd != 'true' }}
       run: moodle-plugin-ci phpcpd
       shell: bash
 

@@ -40,9 +40,9 @@ on:
       enable_phpmd:
         type: boolean
         default: false
-      enable_phpcpd:
+      disable_phpcpd:
         type: boolean
-        default: true
+        default: false
       release_branches:
         description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
         type: string
@@ -206,7 +206,7 @@ jobs:
           disable_phplint:  ${{ inputs.disable_phplint }}
           disable_phpunit:  ${{ inputs.disable_phpunit }}
           enable_phpmd:     ${{ inputs.enable_phpmd }}
-          enable_phpcpd:    ${{ inputs.enable_phpcpd }}
+          disable_phpcpd:    ${{ inputs.disable_phpcpd }}
           highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
 
   release:
