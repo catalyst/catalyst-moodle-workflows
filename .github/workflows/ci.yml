@@ -210,6 +210,7 @@ jobs:
           disable_phpunit:  ${{ inputs.disable_phpunit }}
           enable_phpmd:     ${{ inputs.enable_phpmd }}
           disable_phpcpd:    ${{ inputs.disable_phpcpd }}
+          disable_ci_validate: ${{ inputs.disable_ci_validate }}
           highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
 
   release:
