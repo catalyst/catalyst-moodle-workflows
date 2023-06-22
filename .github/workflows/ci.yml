@@ -43,6 +43,9 @@ on:
       disable_phpcpd:
         type: boolean
         default: false
+      disable_ci_validate:
+        type: boolean
+        default: false
       release_branches:
         description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
         type: string
