@@ -24,6 +24,8 @@ inputs:
     description: 'Option to enable phpmd'
   disable_phpcpd:
     description: 'Option to disable phpcpd'
+  disable_ci_validate:
+    description: 'Option to disable running moodle-plugin-ci validate'
 
   highest_moodle_branch:
     description: 'Holds the value of the highest moodle-branch in the test matrix'
@@ -119,7 +121,7 @@ runs:
       shell: bash
 
     - name: Run validate
-      if: ${{ always() }}
+      if: ${{ always() && inputs.disable_ci_validate != 'true' }}
       run: moodle-plugin-ci validate
       shell: bash
 
