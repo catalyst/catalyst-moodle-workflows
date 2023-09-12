@@ -85,7 +85,6 @@ Below lists the available inputs which are _all optional_:
 | disable_master           | If `true`, this will skip testing against moodle/master branch                                                                                                                           |
 | disable_release          | If `true`, this will skip the release job                                                                                                                                                |
 | disable_phpcpd           | If `true`, this will skip phpcpd checks                                                                                                                                                  |
-| disable_phpcpd           | If `true`, this will skip phpcpd checks                                                                                                                                                  |
 | disable_ci_validate      | If `true`, this will skip moodle-plugin-ci validate checks                                                                                                                               |
 | enable_phpmd             | If `true`, to enable phpmd                                                                                                                                                               |
 | release_branches         | Name of the non-standardly named branch which should run the release job                                                                                                                 |
