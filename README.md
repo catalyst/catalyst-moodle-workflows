@@ -27,9 +27,9 @@ Each plugin should have a measurable range of versions supported. It's recommend
 
 ```php
 # version.php
-$plugin->supported = [35, 401];
+$plugin->supported = [35, 402];
 ```
-This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_401_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml).
+This example will run a matrix of tests from `MOODLE_35_STABLE` to `MOODLE_402_STABLE` - [see full test matrix here](.github/actions/matrix/matrix_includes.yml).
 
 Any number _greater_ than the [latest available stable branch](https://github.com/moodle/moodle/branches/active) will automatically include the [master branch](https://github.com/moodle/moodle/tree/master) for testing
 
