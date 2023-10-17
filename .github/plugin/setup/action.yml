@@ -33,9 +33,10 @@ runs:
   using: "composite"
   steps:
     - name: Check out repository code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         path: plugin
+        submodules: true
     - name: Install node  ${{ matrix.node }}
       uses: actions/setup-node@v2
       with:
