@@ -110,19 +110,20 @@ jobs:
           echo "::set-output name=publishable::$publishable"
       - uses: actions/checkout@v3
       - name: Check out CI code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: ci
           repository: catalyst/catalyst-moodle-workflows
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Check out plugin code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # Needed for 'changed-files' actions (alternatively could be a fixed
           # large number but may cause issues if limited).
           fetch-depth: ${{ ((contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true')) && 0 || 2 }}
           path: plugin
+          submodules: true
       - name: Check if release is required (version.php changes)
         if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
         uses: tj-actions/changed-files@v23
@@ -190,7 +191,7 @@ jobs:
           --health-retries 3
     steps:
       - name: Check out CI code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: ci
           repository: catalyst/catalyst-moodle-workflows
@@ -235,7 +236,7 @@ jobs:
         run: echo "::set-output name=has-secrets::true"
 
       - name: Check out CI code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: ci
           repository: catalyst/catalyst-moodle-workflows
