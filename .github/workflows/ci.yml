@@ -56,6 +56,10 @@ on:
         description: 'Specify the minimum version of PHP to test against. Will exclude workflows using older versions of PHP.'
         type: string
         default: '7.1'
+      ignore_paths:
+        description: 'Specify custom paths for CI to ignore. Third party libraries are ignored by default.'
+        type: string
+        default: ''
     secrets:
       moodle_org_token:
         required: false
@@ -190,6 +194,13 @@ jobs:
           --health-timeout 5s
           --health-retries 3
     steps:
+      - name: Set custom environment variables
+        run: |
+          USER_IGNORE_PATHS="${{ inputs.ignore_paths }}"
+          if [ -n "${USER_IGNORE_PATHS}" ]; then
+            IGNORE_PATHS="${IGNORE_PATHS},${USER_IGNORE_PATHS}"
+            echo "IGNORE_PATHS=${IGNORE_PATHS}" >> $GITHUB_ENV
+          fi
       - name: Check out CI code
         uses: actions/checkout@v3
         with:
