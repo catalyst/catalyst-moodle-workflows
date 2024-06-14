@@ -137,6 +137,10 @@ jobs:
           files: |
             version.php
           since_last_remote_commit: "true"
+          # By default, tj-actions/changed-files uses a fetch-depth of 1.
+          # This step is only executed under the same conditions that fetch-depth
+          # is set to 0 in the previous step.
+          fetch-depth: 0
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
