@@ -125,7 +125,7 @@ jobs:
         with:
           # Needed for 'changed-files' actions (alternatively could be a fixed
           # large number but may cause issues if limited).
-          fetch-depth: ${{ ((contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true')) && 0 || 2 }}
+          fetch-depth: ${{ !((contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true')) && 2 || 0 }}
           path: plugin
           submodules: true
       - name: Check if release is required (version.php changes)
