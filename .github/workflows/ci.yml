@@ -7,7 +7,7 @@ on:
       internal_workflow_branch:
         type: string
         description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
-        default: 'main'
+        default: 'nvm-workaround'
       codechecker_max_warnings:
         type: string
         description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
