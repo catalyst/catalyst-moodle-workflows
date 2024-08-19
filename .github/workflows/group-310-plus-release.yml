@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: Run plugin setup
-        uses: catalyst/catalyst-moodle-workflows/.github/plugin/setup@main
+        uses: ./../plugin/setup/action.yml
         with:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           disable_behat: ${{ inputs.disable_behat }}
