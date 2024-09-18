@@ -1,6 +1,6 @@
 include:
-  # Always include master (issue #18) - disable-able by config by setting 'disable_master' to true
-  - {moodle-branch: 'master', php: '8.1', node: '14.15', mariadb-ver: '10.5', pgsql-ver: '13', database: 'pgsql'}
+  # Always include main (issue #18) - disable-able by config by setting 'disable_master' to true
+  - {moodle-branch: 'main', php: '8.1', node: '14.15', mariadb-ver: '10.5', pgsql-ver: '13', database: 'pgsql'}
   # Test all variants of 4.4.
   - { moodle-branch: 'MOODLE_404_STABLE', php: '8.3', node: '14.15', mariadb-ver: '10.6', pgsql-ver: '13', database: 'mariadb' }
   - { moodle-branch: 'MOODLE_404_STABLE', php: '8.3', node: '14.15', mariadb-ver: '10.6', pgsql-ver: '13', database: 'pgsql' }

@@ -31,7 +31,7 @@ on:
       disable_grunt:
         type: boolean
       disable_master:
-        description: 'If true, this will skip testing against moodle/master branch'
+        description: 'If true, this will skip testing against moodle/main branch'
         type: boolean
       disable_release:
         description: 'If true, this will skip the release job'
