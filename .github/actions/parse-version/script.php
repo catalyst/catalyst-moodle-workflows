@@ -82,7 +82,7 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 
         // If this iteration is on master, check if the upper supported value implies master should be tested or not.
         // e.g. for [35, 500], 500 doesn't exist as a included matrix entry, so treat it like 'master'.
-        if ($entry['moodle-branch'] === 'master') {
+        if ($entry['moodle-branch'] === 'main') {
             // If the upper range does NOT exist in the matrix, then assume the user wants the master to be tested.
             $exists = false;
             foreach ($matrix['include'] as $row) {
@@ -131,7 +131,7 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     }
 
     // Determine whether or not to include the master/dev branch
-    if ($entry['moodle-branch'] === 'master' && !$disable_master) {
+    if ($entry['moodle-branch'] === 'main' && !$disable_master) {
         return true;
     }
 

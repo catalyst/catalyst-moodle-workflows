@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         database: ['mariadb', 'pgsql']
-        moodle-branch: ['master']
+        moodle-branch: ['main']
         node: ['14.15']
         php: ['7.3']
 
@@ -68,4 +68,4 @@ jobs:
           disable_phplint: ${{ inputs.disable_phplint }}
           disable_phpunit: ${{ inputs.disable_phpunit }}
           disable_grunt: ${{ inputs.disable_grunt }}
-          highest_moodle_branch: 'master'
+          highest_moodle_branch: 'main'
