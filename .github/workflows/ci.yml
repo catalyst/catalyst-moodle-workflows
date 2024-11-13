@@ -89,7 +89,8 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     name: prepare test matrix
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.moodle_branches }}-${{ inputs.extra_plugin_runners }}
+      cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     outputs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
@@ -167,6 +168,7 @@ jobs:
       IGNORE_PATHS: tests/fixtures
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
+      cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     services:
       postgres:
