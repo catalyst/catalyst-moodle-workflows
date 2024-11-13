@@ -60,6 +60,10 @@ on:
         description: 'Specify custom paths for CI to ignore. Third party libraries are ignored by default.'
         type: string
         default: ''
+      concurrent_skipping:
+        description: 'Skip a workflow run if the same workflow is already running. See: https://github.com/fkirc/skip-duplicate-actions?tab=readme-ov-file#concurrent_skipping'
+        type: string
+        default: 'same_content_newer'
     secrets:
       moodle_org_token:
         required: false
@@ -79,7 +83,7 @@ jobs:
          # Do not trust previous successful runs
          skip_after_successful_duplicate: false
          # Ensure should_skip is true only if 2 concurrent workflows are working on the same files (content)
-         concurrent_skipping: 'same_content_newer'
+         concurrent_skipping: ${{ inputs.concurrent_skipping }}
   prepare_matrix:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
