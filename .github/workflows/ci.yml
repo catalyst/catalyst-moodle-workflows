@@ -90,7 +90,6 @@ jobs:
     name: prepare test matrix
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     outputs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
@@ -168,7 +167,6 @@ jobs:
       IGNORE_PATHS: tests/fixtures
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
-      cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     services:
       postgres:
