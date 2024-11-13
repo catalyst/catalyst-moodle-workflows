@@ -18,8 +18,11 @@ use Symfony\Component\Yaml\Yaml;
  */
 function output(string $name, string $value) {
     echo PHP_EOL;
-    echo "::set-output name=$name::$value";
-    echo PHP_EOL;
+    $outputfile = getenv('GITHUB_OUTPUT');
+    if (false !== $outputfile) {
+        file_put_contents($outputfile, "{$name}={$value}\n", FILE_APPEND);
+        echo PHP_EOL;
+    }
     echo "Setting output.. $name = $value";
     echo PHP_EOL;
 }
@@ -61,14 +64,23 @@ $updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/up
 $updates = $updates['updates']['core'] ?? [];
 
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
+
+    if (!isset($entry)) {
+        return false;
+    }
+
     // Regex and replacement templates - Partially generated from https://regex101.com/
     $re = '/MOODLE_(.*)_STABLE/m';
     $subst = '$1';
-    $coreVersion = preg_replace($re, $subst, $entry['moodle-branch']);
+    $coreVersion = preg_replace(
+        $re,
+        $subst,
+        $entry['moodle-branch'],
+    );
     $disable_main = !empty($_SERVER['disable_master']) || !empty($_SERVER['disable_main']);
 
     // Check that the php version for the workflow is higher than the minimum set by the option.
-    if ($_SERVER['min_php'] > $entry['php']) {
+    if (isset($_SERVER['min_php']) && $_SERVER['min_php'] > $entry['php']) {
         return false;
     }
 
@@ -106,7 +118,12 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
             // If the upper range does NOT exist in the matrix, then assume the user wants the main to be tested.
             $exists = false;
             foreach ($matrix['include'] as $row) {
-                $currentVersion = preg_replace($re, $subst, $row['moodle-branch']); // e.g. 39, 310, 311, 400, etc.
+                if (!isset($row)) continue; // Skip nulls.
+                $currentVersion = preg_replace(
+                    $re,
+                    $subst,
+                    $row['moodle-branch'],
+                ); // e.g. 39, 310, 311, 400, etc.
                 if ($currentVersion == $upper) {
                     $exists = true;
                     break;
