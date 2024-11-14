@@ -92,6 +92,30 @@ Below lists the available inputs which are _all optional_:
 | min_php                  | The minimum php version to test. Set this to support the minimum php version supported by the plugin. Defaults to '7.1', however more recent Moodle branches only test higher versions.  |
 | ignore_paths             | Specify custom paths for CI to ignore. Third party libraries are ignored by default. |
 
+### Running with dependencies
+If you'd require to run your workflow against specific versions of a plugin you depend on, then you can specify a branch you'd like to run each job against. Like following:   
+
+```yaml
+jobs:
+  moodle41:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
+    with:
+      disable_phpunit: true
+      moodle_branches: MOODLE_401_STABLE
+      extra_plugin_runners:
+        moodle-plugin-ci add-plugin danmarsden/moodle-mod_attendance --branch MOODLE_401_STABLE
+
+  moodle42:
+    uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
+    with:
+      disable_phpunit: true
+      moodle_branches: MOODLE_402_STABLE
+      extra_plugin_runners:
+        moodle-plugin-ci add-plugin danmarsden/moodle-mod_attendance --branch MOODLE_402_STABLE
+```
+
+An example can be found here - https://github.com/danmarsden/moodle-block_attendance/blob/main/.github/workflows/ci.yml
+
 ### Add CI badge
 
 With badges, we will be able to see at a glance from the plugin's `README.md` whether or not the plugin is in a good state for usage.
