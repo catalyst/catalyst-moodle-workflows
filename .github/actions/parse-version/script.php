@@ -18,8 +18,11 @@ use Symfony\Component\Yaml\Yaml;
  */
 function output(string $name, string $value) {
     echo PHP_EOL;
-    echo "::set-output name=$name::$value";
-    echo PHP_EOL;
+    $outputfile = getenv('GITHUB_OUTPUT');
+    if (false !== $outputfile) {
+        file_put_contents($outputfile, "{$name}={$value}\n", FILE_APPEND);
+        echo PHP_EOL;
+    }
     echo "Setting output.. $name = $value";
     echo PHP_EOL;
 }
@@ -61,18 +64,47 @@ $updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/up
 $updates = $updates['updates']['core'] ?? [];
 
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
-    // Regex and replacement templates - Partially generated from https://regex101.com/
-    $re = '/MOODLE_(.*)_STABLE/m';
-    $subst = '$1';
-    $coreVersion = preg_replace($re, $subst, $entry['moodle-branch']);
-    $disable_master = !empty($_SERVER['disable_master']);
 
-    // Check that the php version for the workflow is higher than the minimum set by the option.
-    if ($_SERVER['min_php'] > $entry['php']) {
+    if (!isset($entry)) {
         return false;
     }
 
-    // If a fixed support range is set, use this.
+    // Regex and replacement templates - Partially generated from https://regex101.com/
+    $re = '/MOODLE_(.*)_STABLE/m';
+    $subst = '$1';
+    $coreVersion = preg_replace(
+        $re,
+        $subst,
+        $entry['moodle-branch'],
+    );
+    $disable_main = !empty($_SERVER['disable_master']) || !empty($_SERVER['disable_main']);
+
+    // Check that the php version for the workflow is higher than the minimum set by the option.
+    if (isset($_SERVER['min_php']) && $_SERVER['min_php'] > $entry['php']) {
+        return false;
+    }
+
+    // Use the 'moodle_branches' supplied in the 'with:' options to specify the branches of Moodle that would be included in the test.
+    // Example: MOODLE_35_STABLE MOODLE_36_STABLE
+    // Note: They are space separated.
+    if (!empty($_SERVER['filter'])) {
+        $filter = $_SERVER['filter'];
+        $filter = preg_split('/\s+/', $filter);
+        // Otherwise if not defined, it should check if the 'filter' variable has been provided, and use the matching versions there instead.
+        if (in_array($entry['moodle-branch'], $filter)) {
+            return true;
+        }
+
+        // If they are NOT specified, do NOT run those branches in tests.
+        return false;
+    }
+
+    // Determine whether or not to include the main/dev branch.
+    if ($entry['moodle-branch'] === 'main' && $disable_main) {
+        return false;
+    }
+
+    // If a fixed support range is set, use this. This dynamically includes the necessary branches based on the range provided.
     if (!empty($plugin->supported)) {
         [$lower, $upper] = $plugin->supported;
         // If within permitted ranges, e.g. 36 is between [35, 39], include it.
@@ -80,13 +112,18 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
             return true;
         }
 
-        // If this iteration is on master, check if the upper supported value implies master should be tested or not.
-        // e.g. for [35, 500], 500 doesn't exist as a included matrix entry, so treat it like 'master'.
+        // If this iteration is on main, check if the upper supported value implies main should be tested or not.
+        // e.g. for [35, 500], 500 doesn't exist as a included matrix entry, so treat it like 'main'.
         if ($entry['moodle-branch'] === 'main') {
-            // If the upper range does NOT exist in the matrix, then assume the user wants the master to be tested.
+            // If the upper range does NOT exist in the matrix, then assume the user wants the main to be tested.
             $exists = false;
             foreach ($matrix['include'] as $row) {
-                $currentVersion = preg_replace($re, $subst, $row['moodle-branch']); // e.g. 39, 310, 311, 400, etc.
+                if (!isset($row)) continue; // Skip nulls.
+                $currentVersion = preg_replace(
+                    $re,
+                    $subst,
+                    $row['moodle-branch'],
+                ); // e.g. 39, 310, 311, 400, etc.
                 if ($currentVersion == $upper) {
                     $exists = true;
                     break;
@@ -99,15 +136,6 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 
         // For everything else, exclude it, since $plugin->supported implies a closed range.
         return false;
-    }
-
-    if (isset($_SERVER['filter'])) {
-        $filter = $_SERVER['filter'];
-        $filter = preg_split('/\s+/', $filter);
-        // Otherwise if not defined, it should check if the 'filter' variable has been provided, and use the matching versions there instead.
-        if (in_array($entry['moodle-branch'], $filter)) {
-            return true;
-        }
     }
 
     // If that hasn't been provided either, it should fallback and do a
@@ -128,11 +156,6 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
                 return true;
             }
         }
-    }
-
-    // Determine whether or not to include the master/dev branch
-    if ($entry['moodle-branch'] === 'main' && !$disable_master) {
-        return true;
     }
 
     return false;
