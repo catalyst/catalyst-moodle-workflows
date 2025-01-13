@@ -121,24 +121,19 @@ An example can be found here - https://github.com/danmarsden/moodle-block_attend
 With badges, we will be able to see at a glance from the plugin's `README.md` whether or not the plugin is in a good state for usage.
 
 ```
-<a href="https://github.com/[USER]/[PLUGIN]/actions/workflows/ci.yml?query=branch%3A[BRANCH]">
-<img src="https://github.com/[USER]/[PLUGIN]/workflows/ci/badge.svg?branch=[BRANCH]">
-</a>
+[![ci](https://github.com/[user]/[plugin]/actions/workflows/ci.yml/badge.svg?branch=[branch])](https://github.com/[user]/[plugin]/actions/workflows/ci.yml?branch=[branch])
 ```
 
 Please update `[USER]`, `[PLUGIN]` and `[BRANCH]` in the example above. This goes under the plugin title. Here is an example:
 
 ```
-<a href="https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml?query=branch%3AMOODLE_35_STABLE">
-<img src="https://github.com/catalyst/moodle-tool_excimer/workflows/ci/badge.svg?branch=MOODLE_35_STABLE">
+[![ci](https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml/badge.svg?branch=MOODLE_35_STABLE)](https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml?branch=MOODLE_35_STABLE)
 </a>
 ```
 
 which renders as:
 
-<a href="https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml?query=branch%3AMOODLE_35_STABLE">
-<img src="https://github.com/catalyst/moodle-tool_excimer/workflows/ci/badge.svg?branch=MOODLE_35_STABLE">
-</a>
+[![ci](https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml/badge.svg?branch=MOODLE_35_STABLE)](https://github.com/catalyst/moodle-tool_excimer/actions/workflows/ci.yml?branch=MOODLE_35_STABLE)
 
 ## How does this automate tests?
 When you call the reusable ci, it will:
