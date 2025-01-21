@@ -60,7 +60,7 @@ $matrix = Yaml::parse($matrixYaml);
 
 // Version breakpoints are sourced from:
 // https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=$lowestSupportedBranch
-$updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.3'), true);
+$updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8'), true);
 $updates = $updates['updates']['core'] ?? [];
 
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {

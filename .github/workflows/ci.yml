@@ -55,7 +55,7 @@ on:
       min_php:
         description: 'Specify the minimum version of PHP to test against. Will exclude workflows using older versions of PHP.'
         type: string
-        default: '7.1'
+        default: '7.4'
       ignore_paths:
         description: 'Specify custom paths for CI to ignore. Third party libraries are ignored by default.'
         type: string
