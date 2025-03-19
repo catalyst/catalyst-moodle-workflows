@@ -43,7 +43,7 @@ runs:
         node-version: ${{ matrix.node }}
 
     - name: Setup PHP ${{ matrix.php }}
-      uses: shivammathur/setup-php@v2
+      uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
       with:
         php-version: ${{ matrix.php }}
         ini-values: max_input_vars=5000
