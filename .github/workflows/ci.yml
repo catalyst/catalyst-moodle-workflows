@@ -134,7 +134,7 @@ jobs:
           submodules: true
       - name: Check if release is required (version.php changes)
         if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
-        uses: tj-actions/changed-files@v23
+        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
         id: check-version
         with:
           path: plugin
