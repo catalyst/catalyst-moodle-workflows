@@ -78,7 +78,7 @@ jobs:
    steps:
      - id: skip_check
        # docs: https://github.com/fkirc/skip-duplicate-actions#skip-concurrent-workflow-runs
-       uses: fkirc/skip-duplicate-actions@master
+       uses: fkirc/skip-duplicate-actions@04a1aebece824b56e6ad6a401d015479cd1c50b3 # Oct 9, 2024 commit (current latest)
        with:
          # Do not trust previous successful runs
          skip_after_successful_duplicate: false
