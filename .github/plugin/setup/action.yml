@@ -14,6 +14,8 @@ inputs:
     description: 'Option to disable mustache tests'
   disable_phpdoc:
     description: 'Option to disable phpdoc tests'
+  disable_phpcs:
+    description: 'Option to disable code standards (codechecker) tests'
   disable_phplint:
     description: 'Option to disable phplint tests'
   disable_phpunit:
@@ -117,7 +119,7 @@ runs:
       shell: bash
 
     - name: Run codechecker
-      if: ${{ always() }}
+      if: ${{ always() && inputs.disable_phpcs != 'true' }}
       run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
       shell: bash
 
