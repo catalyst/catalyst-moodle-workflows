@@ -26,6 +26,10 @@ on:
         type: boolean
         description: 'If true, this will skip testing phpdocs'
         default: false
+      disable_phpcs:
+        type: boolean
+        description: 'If true, this will skip testing php code standards'
+        default: false
       disable_phpunit:
         type: boolean
       disable_grunt:
@@ -222,6 +226,7 @@ jobs:
           disable_grunt:    ${{ inputs.disable_grunt }}
           disable_mustache: ${{ inputs.disable_mustache }}
           disable_phpdoc:   ${{ inputs.disable_phpdoc }}
+          disable_phpcs:    ${{ inputs.disable_phpcs }}
           disable_phplint:  ${{ inputs.disable_phplint }}
           disable_phpunit:  ${{ inputs.disable_phpunit }}
           enable_phpmd:     ${{ inputs.enable_phpmd }}
