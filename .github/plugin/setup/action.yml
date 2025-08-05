@@ -70,7 +70,7 @@ runs:
         # Initialise moodle-plugin-ci (install via composer)
         echo "::group::Initialise moodle-plugin-ci"
 
-        composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^3
+        composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
         # Add dirs to $PATH
         echo $(cd m-ci/bin; pwd) >> $GITHUB_PATH
         echo $(cd m-ci/vendor/bin; pwd) >> $GITHUB_PATH
