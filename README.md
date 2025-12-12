@@ -173,3 +173,19 @@ To fix this, you'll need to rebundle the relevant files, on the <ins>highest sup
 __NOTE:__ This may involve having a clean copy of Moodle and installing the plugin code to run the necessary commands to rebuild the _stale_ files.
 
 Grunt docs: https://docs.moodle.org/dev/Grunt#Running_grunt
+
+### Testing changes
+Changes can be tested by using another plugin repository that uses these workflows.
+
+Simply change the repository/branch it pulls from:
+
+```yml
+uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@my-custom-branch
+```
+
+and specify the same branch as a `with` parameter:
+
+```yml
+with:
+  internal_workflow_branch: 'my-custom-branch'
+```
