@@ -38,6 +38,8 @@ RUN composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci 
 # Add ci/bin and ci/vendor/bin to PATH
 ENV PATH="/ci/bin:/ci/vendor/bin:${PATH}"
 
+RUN mkdir -p /workspace
+
 # Set working directory
 WORKDIR /workspace
 
