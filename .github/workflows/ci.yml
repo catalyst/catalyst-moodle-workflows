@@ -237,7 +237,7 @@ jobs:
   setup-single:
     name: Canonical setup for single checks
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out CI code
