@@ -59,3 +59,18 @@ jobs:
             --build-arg NODE_VERSION=20 \
             -t $repo_name:latest \
             -f docker/Dockerfile .
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push Docker image to GHCR
+        run: |
+          repo_name=catalyst-moodle-workflows-${{ matrix.moodle-branch }}-${{ matrix.php }}
+          repo_name=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+          ghcr_repo=ghcr.io/${{ github.repository_owner }}/$repo_name:latest
+          docker tag $repo_name:latest $ghcr_repo
+          docker push $ghcr_repo
