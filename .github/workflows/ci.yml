@@ -446,7 +446,6 @@ jobs:
       - grunt
       - phpcpd
       - phpmd
-      - behat
       - phpdoc
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
