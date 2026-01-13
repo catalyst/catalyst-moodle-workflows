@@ -1,36 +1,18 @@
 name: 'Plugin setup'
 description: 'Run plugin setup'
 inputs:
-  codechecker_max_warnings:
-    description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
-    default: '-1'
   extra_php_extensions:
     description: 'List of additional php packages to install'
   extra_plugin_runners:
     description: 'Command to install dependencies'
-  disable_behat:
-    description: 'Option to disable behat tests'
-  disable_mustache:
-    description: 'Option to disable mustache tests'
-  disable_phpdoc:
-    description: 'Option to disable phpdoc tests'
-  disable_phpcs:
-    description: 'Option to disable code standards (codechecker) tests'
-  disable_phplint:
-    description: 'Option to disable phplint tests'
-  disable_phpunit:
-    description: 'Option to disable phpunit tests'
-  disable_grunt:
-    description: 'Option to disable grunt'
-  enable_phpmd:
-    description: 'Option to enable phpmd'
-  disable_phpcpd:
-    description: 'Option to disable phpcpd'
-  disable_ci_validate:
-    description: 'Option to disable running moodle-plugin-ci validate'
-
-  highest_moodle_branch:
-    description: 'Holds the value of the highest moodle-branch in the test matrix'
+  php_version:
+    description: 'PHP version to use'
+  node_version:
+    description: 'Node version to use'
+  database:
+    description: 'Database type to use'
+  moodle_branch:
+    description: 'Moodle branch to use'
 runs:
   using: "composite"
   steps:
@@ -39,28 +21,28 @@ runs:
       with:
         path: plugin
         submodules: true
-    - name: Install node  ${{ matrix.node }}
+    - name: Install node ${{ inputs.node_version }}
       uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node }}
+        node-version: ${{ inputs.node_version }}
 
-    - name: Setup PHP ${{ matrix.php }}
+    - name: Setup PHP ${{ inputs.php_version }}
       uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
       with:
-        php-version: ${{ matrix.php }}
+        php-version: ${{ inputs.php_version }}
         ini-values: max_input_vars=5000
         extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
         coverage: none
 
     - name: Configure Required Composer Version
       id: install-composer1
-      if: ${{ matrix.moodle-branch == 'MOODLE_32_STABLE' || matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
         echo "::set-output name=COMPOSER_VERSION::--1"
       shell: bash
 
     - name: Update Composer
-      if: ${{ matrix.moodle-branch == 'MOODLE_32_STABLE' || matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
         composer self-update ${{ steps.install-composer1.outputs.COMPOSER_VERSION }}
       shell: bash
@@ -101,8 +83,8 @@ runs:
         echo "::endgroup::"
       shell: bash
       env:
-        DB: ${{ matrix.database }}
-        MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+        DB: ${{ inputs.database }}
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
 
     - name: Install Core Patches
       if: ${{ always() }}
@@ -110,7 +92,7 @@ runs:
       run: |
         git config --global user.email "test@test.com"
         git config --global user.name "Test"
-        ((test -f plugin/patch/${{ matrix.moodle-branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ matrix.moodle-branch }}.diff) || echo No patch found;)
+        ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
     - name: Install Moodle and Plugin
@@ -127,98 +109,6 @@ runs:
         echo "::endgroup::"
       shell: bash
       env:
-        DB: ${{ matrix.database }}
-        MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+        DB: ${{ inputs.database }}
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
 
-    - name: Run phplint
-      if: ${{ always() && inputs.disable_phplint != 'true' }}
-      run: moodle-plugin-ci phplint
-      shell: bash
-
-    - name: Run codechecker
-      if: ${{ always() && inputs.disable_phpcs != 'true' }}
-      run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
-      shell: bash
-
-    - name: Run validate
-      if: ${{ always() && inputs.disable_ci_validate != 'true' }}
-      run: moodle-plugin-ci validate
-      shell: bash
-
-    - name: Run savepoints
-      if: ${{ always() }}
-      run: moodle-plugin-ci savepoints
-      shell: bash
-
-    - name: Run mustache
-      if: ${{ always() && inputs.disable_mustache != 'true' }}
-      run: moodle-plugin-ci mustache
-      shell: bash
-
-    - name: Run grunt
-      if: ${{ always() && inputs.disable_grunt != 'true' && inputs.highest_moodle_branch == matrix.moodle-branch }}
-      run: moodle-plugin-ci grunt
-      shell: bash
-
-    - name: Run phpunit
-      if: ${{ always() && inputs.disable_phpunit != 'true' }}
-      run: |
-        moodle-plugin-ci phpunit
-        cd moodle
-        vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
-        vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
-      shell: bash
-
-    - name: Run behat
-      if: ${{ always() && inputs.disable_behat != 'true' }}
-      run: moodle-plugin-ci behat --profile chrome
-      shell: bash
-
-    - name: PHP Copy/Paste Detector
-      if: ${{ always() && inputs.disable_phpcpd != 'true' }}
-      run: moodle-plugin-ci phpcpd
-      shell: bash
-
-    - name: PHP Mess Detector
-      if: ${{ always() && inputs.enable_phpmd == 'true' }}
-      run: moodle-plugin-ci phpmd
-      shell: bash
-
-    - name: Moodle PHPDoc Checker
-      if: ${{ always() && inputs.disable_phpdoc != 'true' && inputs.highest_moodle_branch == matrix.moodle-branch }}
-      # Run this check and only fail CI if it's on 4.0+ / master
-      run: |
-        # phpdoc checks
-
-        # Don't stop on faiures
-        set +e
-
-        # Note this block whilst large, was made so that it can be pasted locally if needed and isn't CI specific
-        # Disclaimer: you'll need to adjust the main command but otherwise the handling of output remains the same.
-        output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc`
-        haserrors=$?
-
-        # No errors? Print and return.
-        if [[ $haserrors -eq 0 ]]; then
-          echo "phpdoc checks - OK"
-          exit 0
-        fi
-
-        # Skip incorrect errors/warnings and retain the relevant lines.
-        output=`echo "$output" | grep -v 'Class ( is not documented' | grep -v 'Could not connect to debugging client.'`
-        output=`echo "$output" | grep -B1 'Line'`
-
-        # Filter out github actions paths from the output. It should only
-        # show the path relevant to the files in the plugin repo.
-        # For example:
-        # from /home/runner/work/moodle-tool_dataflows/moodle-tool_dataflows/moodle/admin/tool/dataflows/db/upgrade.php
-        # to   db/upgrade.php at best,
-        # or   admin/tool/dataflows/db/upgrade.php
-        currentdir=$(pwd)
-        if [[ "$output" ]]; then
-          echo "$output" | sed -e "s,$currentdir/,,g" | sed -e "s,^moodle/,,g" | tee $GITHUB_STEP_SUMMARY
-          exit 1
-        fi
-
-        echo "phpdoc checks - OK"
-      shell: bash

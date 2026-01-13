@@ -73,6 +73,17 @@ on:
         required: false
 
 jobs:
+  # Hidden job used only for YAML anchor inheritance, will not run
+  _ci_setup: &ci_setup
+    needs: setup-single
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
+
   pre_job:
    name: check if job needs to run
    runs-on: ubuntu-latest
@@ -119,7 +130,7 @@ jobs:
             )
           ) }}
 
-          echo "::set-output name=publishable::$publishable"
+          echo "publishable=$publishable" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -161,10 +172,10 @@ jobs:
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
 
-  setup:
+  matrix:
     name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
@@ -219,24 +230,167 @@ jobs:
       - name: Run plugin setup
         uses: ./ci/.github/plugin/setup
         with:
-          codechecker_max_warnings: ${{ inputs.codechecker_max_warnings }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          disable_behat:    ${{ inputs.disable_behat }}
-          disable_grunt:    ${{ inputs.disable_grunt }}
-          disable_mustache: ${{ inputs.disable_mustache }}
-          disable_phpdoc:   ${{ inputs.disable_phpdoc }}
-          disable_phpcs:    ${{ inputs.disable_phpcs }}
-          disable_phplint:  ${{ inputs.disable_phplint }}
-          disable_phpunit:  ${{ inputs.disable_phpunit }}
-          enable_phpmd:     ${{ inputs.enable_phpmd }}
-          disable_phpcpd:    ${{ inputs.disable_phpcpd }}
-          disable_ci_validate: ${{ inputs.disable_ci_validate }}
-          highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+          php_version: ${{ matrix.php }}
+          node_version: ${{ matrix.node }}
+          database: ${{ matrix.database }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+      - name: Run phpunit
+        run: |
+          moodle-plugin-ci phpunit
+          cd moodle
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
+        shell: bash
+  setup-single:
+    name: Canonical setup for single checks
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          php_version: '8.3'
+          node_version: '20.11'
+          database: 'pgsql'
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Upload canonical workspace
+        uses: actions/upload-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
+
+  codechecker:
+    <<: *ci_setup
+    name: Codechecker
+    if: ${{ inputs.disable_phpcs != true }}
+    steps:
+      - name: Run codechecker
+        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
+        shell: bash
+
+  phplint:
+    <<: *ci_setup
+    name: PHPLint
+    if: ${{ inputs.disable_phplint != true }}
+    steps:
+      - name: Run phplint
+        run: moodle-plugin-ci phplint
+        shell: bash
+
+  validate:
+    <<: *ci_setup
+    name: Validate
+    if: ${{ inputs.disable_ci_validate != true }}
+    steps:
+      - name: Run validate
+        run: moodle-plugin-ci validate
+        shell: bash
+
+  savepoints:
+    <<: *ci_setup
+    name: Savepoints
+    steps:
+      - name: Run savepoints
+        run: moodle-plugin-ci savepoints
+        shell: bash
+
+  mustache:
+    <<: *ci_setup
+    name: Mustache
+    if: ${{ inputs.disable_mustache != true }}
+    steps:
+      - name: Run mustache
+        run: moodle-plugin-ci mustache
+        shell: bash
+
+  grunt:
+    <<: *ci_setup
+    name: Grunt
+    if: ${{ inputs.disable_grunt != true }}
+    steps:
+      - name: Run grunt
+        run: moodle-plugin-ci grunt
+        shell: bash
+
+  phpcpd:
+    <<: *ci_setup
+    name: PHPCPD
+    if: ${{ inputs.disable_phpcpd != true }}
+    steps:
+      - name: Run phpcpd
+        run: moodle-plugin-ci phpcpd
+        shell: bash
+
+  phpmd:
+    <<: *ci_setup
+    name: PHPMD
+    if: ${{ inputs.enable_phpmd == true }}
+    steps:
+      - name: Run phpmd
+        run: moodle-plugin-ci phpmd
+        shell: bash
+  behat:
+    <<: *ci_setup
+    name: Behat
+    if: ${{ inputs.disable_behat != true }}
+    steps:
+      - name: Run behat
+        run: moodle-plugin-ci behat --profile chrome
+        shell: bash
+
+  phpdoc:
+    <<: *ci_setup
+    name: PHPDoc
+    if: ${{ inputs.disable_phpdoc != true }}
+    steps:
+      - name: Run phpdoc
+        run: |
+          set +e
+          output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc`
+          haserrors=$?
+          if [[ $haserrors -eq 0 ]]; then
+            echo "phpdoc checks - OK"
+            exit 0
+          fi
+          output=`echo "$output" | grep -v 'Class ( is not documented' | grep -v 'Could not connect to debugging client.'`
+          output=`echo "$output" | grep -B1 'Line'`
+          currentdir=$(pwd)
+          if [[ "$output" ]]; then
+            echo "$output" | sed -e "s,$currentdir/,,g" | sed -e "s,^moodle/,,g" | tee $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "phpdoc checks - OK"
+        shell: bash
 
   release:
     name: Release to the Moodle plugin directory
-    needs: [setup, prepare_matrix]
+    needs:
+      - pre_job
+      - prepare_matrix
+      - matrix
+      - setup-single
+      - codechecker
+      - phplint
+      - validate
+      - savepoints
+      - mustache
+      - grunt
+      - phpcpd
+      - phpmd
+      - behat
+      - phpdoc
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
     # Patterns allowed:
@@ -253,7 +407,7 @@ jobs:
         env:
           SECRET_TO_CHECK: '${{ secrets.moodle_org_token }}'
         if: ${{ env.SECRET_TO_CHECK != '' }}
-        run: echo "::set-output name=has-secrets::true"
+        run: echo "has-secrets=true" >> $GITHUB_OUTPUT
 
       - name: Check out CI code
         uses: actions/checkout@v3
