@@ -177,7 +177,7 @@ jobs:
       cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     container:
-      image: ${{ format('ghcr.io/{0}/catalyst-moodle-workflows-{1}-{2}:latest', github.repository_owner, replace(toLower(matrix.moodle-branch), '_', '-'), replace(toLower(matrix.php), '_', '-')) }}
+      image: ${{ matrix.container }}
       options: --user root
     services:
       postgres:
@@ -260,7 +260,7 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
-      image: ${{ format('ghcr.io/{0}/catalyst-moodle-workflows-{1}-8.3:latest', github.repository_owner, replace(toLower(needs.prepare_matrix.outputs.highest_moodle_branch), '_', '-')) }}
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
       options: --user root
     steps:
       - name: Check out CI code
