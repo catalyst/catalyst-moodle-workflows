@@ -73,17 +73,7 @@ on:
         required: false
 
 jobs:
-  # Hidden job used only for YAML anchor inheritance, will not run
-  _ci_setup: &ci_setup
-    if: false
-    needs: setup-single
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v3
-        with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+
 
   pre_job:
    name: check if job needs to run
@@ -273,89 +263,149 @@ jobs:
           path: ${{ github.workspace }}
 
   codechecker:
-    <<: *ci_setup
     name: Codechecker
     if: ${{ inputs.disable_phpcs != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run codechecker
         run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
         shell: bash
 
   phplint:
-    <<: *ci_setup
     name: PHPLint
     if: ${{ inputs.disable_phplint != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run phplint
         run: moodle-plugin-ci phplint
         shell: bash
 
   validate:
-    <<: *ci_setup
     name: Validate
     if: ${{ inputs.disable_ci_validate != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run validate
         run: moodle-plugin-ci validate
         shell: bash
 
   savepoints:
-    <<: *ci_setup
     name: Savepoints
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run savepoints
         run: moodle-plugin-ci savepoints
         shell: bash
 
   mustache:
-    <<: *ci_setup
     name: Mustache
     if: ${{ inputs.disable_mustache != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run mustache
         run: moodle-plugin-ci mustache
         shell: bash
 
   grunt:
-    <<: *ci_setup
     name: Grunt
     if: ${{ inputs.disable_grunt != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run grunt
         run: moodle-plugin-ci grunt
         shell: bash
 
   phpcpd:
-    <<: *ci_setup
     name: PHPCPD
     if: ${{ inputs.disable_phpcpd != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run phpcpd
         run: moodle-plugin-ci phpcpd
         shell: bash
 
   phpmd:
-    <<: *ci_setup
     name: PHPMD
     if: ${{ inputs.enable_phpmd == true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run phpmd
         run: moodle-plugin-ci phpmd
         shell: bash
   behat:
-    <<: *ci_setup
     name: Behat
     if: ${{ inputs.disable_behat != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run behat
         run: moodle-plugin-ci behat --profile chrome
         shell: bash
 
   phpdoc:
-    <<: *ci_setup
     name: PHPDoc
     if: ${{ inputs.disable_phpdoc != true }}
+    runs-on: ubuntu-latest
+    needs: setup-single
     steps:
+      - name: Download canonical workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: canonical-workspace
+          path: ${{ github.workspace }}
       - name: Run phpdoc
         run: |
           set +e
