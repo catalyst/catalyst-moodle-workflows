@@ -254,6 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
