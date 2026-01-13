@@ -252,10 +252,35 @@ jobs:
         if: ${{ inputs.disable_behat != true }}
         run: moodle-plugin-ci behat --profile chrome
         shell: bash
-  setup-single:
-    name: Common setup for CI checks
-    needs: prepare_matrix
+  codechecker:
     if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run codechecker
+        if: ${{ inputs.disable_phpcs != true }}
+        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
+        shell: bash
+  phplint:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
@@ -276,142 +301,188 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-      - name: Upload canonical workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
-  codechecker:
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
-    steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
-      - name: Run codechecker
-        if: ${{ inputs.disable_phpcs != true }}
-        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
-        shell: bash
-  phplint:
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
-    steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
       - name: Run phplint
         if: ${{ inputs.disable_phplint != true }}
         run: moodle-plugin-ci phplint
         shell: bash
   validate:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run validate
         if: ${{ inputs.disable_ci_validate != true }}
         run: moodle-plugin-ci validate
         shell: bash
   savepoints:
     name: Savepoints
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run savepoints
         run: moodle-plugin-ci savepoints
         shell: bash
   mustache:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
         run: moodle-plugin-ci mustache
         shell: bash
   grunt:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
         run: moodle-plugin-ci grunt
         shell: bash
   phpcpd:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run phpcpd
         if: ${{ inputs.disable_phpcpd != true }}
         run: moodle-plugin-ci phpcpd
         shell: bash
   phpmd:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run phpmd
         if: ${{ inputs.enable_phpmd == true }}
         run: moodle-plugin-ci phpmd
         shell: bash
   phpdoc:
+    if: needs.prepare_matrix.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
+    defaults:
+      run:
+        working-directory: /workspace
     steps:
-      - name: Download canonical workspace
-        uses: actions/download-artifact@v4
+      - name: Check out CI code
+        uses: actions/checkout@v3
         with:
-          name: canonical-workspace
-          path: ${{ github.workspace }}
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run phpdoc
         if: ${{ inputs.disable_phpdoc != true }}
         run: |
@@ -437,7 +508,6 @@ jobs:
       - pre_job
       - prepare_matrix
       - matrix
-      - setup-single
       - codechecker
       - phplint
       - validate
