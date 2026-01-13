@@ -40,7 +40,7 @@ runs:
         # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
         sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
 
-        moodle-plugin-ci install -vvv --plugin ./plugin --no-init --repo /moodle --db-host=127.0.0.1 -db-type pgsql
+        moodle-plugin-ci install -vvv --plugin ./plugin --no-init --repo /moodle --db-host=127.0.0.1 --db-type pgsql
 
         echo "::endgroup::"
 
