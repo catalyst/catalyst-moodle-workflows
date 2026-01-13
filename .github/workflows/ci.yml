@@ -175,13 +175,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
       cancel-in-progress: true
-    runs-on: 'ubuntu-latest'
-    container:
-      image: ${{ matrix.container }}
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.container }}
     services:
       postgres:
         image: "postgres:${{ matrix.pgsql-ver }}"
@@ -261,13 +255,7 @@ jobs:
     name: Common setup for CI checks
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: 'ubuntu-latest'
-    container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     defaults:
       run:
         working-directory: /workspace
@@ -292,7 +280,7 @@ jobs:
           path: ${{ github.workspace }}
 
   codechecker:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -307,7 +295,7 @@ jobs:
           
 
   phplint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -321,7 +309,7 @@ jobs:
         shell: bash
 
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -336,7 +324,7 @@ jobs:
 
   savepoints:
     name: Savepoints
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -349,7 +337,7 @@ jobs:
         shell: bash
 
   mustache:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -363,7 +351,7 @@ jobs:
         shell: bash
 
   grunt:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -377,7 +365,7 @@ jobs:
         shell: bash
 
   phpcpd:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -391,7 +379,7 @@ jobs:
         shell: bash
 
   phpmd:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
@@ -405,7 +393,7 @@ jobs:
         shell: bash
 
   phpdoc:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: setup-single
     steps:
       - name: Download canonical workspace
