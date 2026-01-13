@@ -1,7 +1,4 @@
-# Stage 1: Get composer binary
-FROM composer:latest AS composer
 
-# Stage 2: Main build
 FROM ubuntu:24.04
 
 ARG MOODLE_BRANCH
@@ -28,8 +25,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs git unzip curl locales && \
     locale-gen en_AU.UTF-8
 
-# Copy Composer from the composer stage
-COPY --from=composer /usr/bin/composer /usr/bin/composer
+
+# Install Composer (official recommended method)
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Clone Moodle core (example: main branch)
 RUN git clone --depth 1 --branch ${MOODLE_BRANCH} https://github.com/moodle/moodle.git /moodle
