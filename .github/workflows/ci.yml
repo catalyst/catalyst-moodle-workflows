@@ -304,6 +304,19 @@ jobs:
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: prepare_matrix
+    services:
+      pgsql:
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -318,6 +331,17 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=pgsql --repo /moodle --branch ${{ matrix.moodle-branch }} --db-type pgsql
+
+          echo "::endgroup::"
       - name: Run validate
         if: ${{ inputs.disable_ci_validate != true }}
         run: moodle-plugin-ci validate ./plugin
