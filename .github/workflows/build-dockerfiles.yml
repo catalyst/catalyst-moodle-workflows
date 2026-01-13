@@ -60,6 +60,7 @@ jobs:
         shell: python
 
   build:
+    name: ${{ matrix.container }}
     needs: build-dockerfiles
     runs-on: ubuntu-latest
     strategy:
@@ -79,7 +80,7 @@ jobs:
         with:
           context: ./docker/
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/catalyst-moodle-workflows-${{ matrix.moodle-branch }}-${{ matrix.php }}:latest
+          tags: ${{ matrix.container }}
           build-args: |
             MOODLE_BRANCH=${{ matrix.moodle-branch }}
             PHP_VERSION=${{ matrix.php }}
