@@ -22,7 +22,7 @@ RUN update-alternatives --set php /usr/bin/php${PHP_VERSION}
 
 # Install Node.js (specific version) and other dependencies
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
-    apt-get install -y nodejs git unzip curl locales && \
+    apt-get install -y nodejs npm git unzip curl locales && \
     locale-gen en_AU.UTF-8
 
 
