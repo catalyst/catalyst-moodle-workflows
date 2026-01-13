@@ -111,12 +111,6 @@ jobs:
           steps.check-branch.outputs.publishable == 'true'
         ) }}
     steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Check if currently on a publishable branch
         id: check-branch
         run: |
@@ -216,12 +210,6 @@ jobs:
           --health-timeout 5s
           --health-retries 3
     steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set custom environment variables
         run: |
           USER_IGNORE_PATHS="${{ inputs.ignore_paths }}"
@@ -273,13 +261,10 @@ jobs:
     name: Common setup for CI checks
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.prepare_matrix.outputs.latest_container }}
     defaults:
       run:
         working-directory: /workspace
-    container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-      options: --user root
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
