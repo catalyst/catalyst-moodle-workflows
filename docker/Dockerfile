@@ -25,7 +25,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs npm git unzip curl locales postgresql mariadb-client && \
     locale-gen en_AU.UTF-8
 
-
 # Install Composer (official recommended method)
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

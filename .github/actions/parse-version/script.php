@@ -207,9 +207,15 @@ if (!empty($phpVersions)) {
     foreach ($finalMatrix as $entry) {
         if ($entry['moodle-branch'] === $highestMoodleBranch && $entry['php'] === $highestPhp) {
             output('latest_container', $entry['container']);
+            if (isset($entry['pgsql-ver'])) {
+                output('latest_pgsql_ver', $entry['pgsql-ver']);
+            } else {
+                output('latest_pgsql_ver', '');
+            }
             break;
         }
     }
 } else {
     output('latest_container', '');
+    output('latest_pgsql_ver', '');
 }

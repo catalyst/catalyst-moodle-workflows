@@ -103,6 +103,7 @@ jobs:
       component: ${{ steps.parse-version.outputs.component }}
       highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
       latest_container: ${{ steps.parse-version.outputs.latest_container }}
+      latest_pgsql_ver: ${{ steps.parse-version.outputs.latest_pgsql_ver }}
       release_required: ${{ (
           contains(github.event_name, 'push') &&
           steps.check-version.outputs.any_changed == 'true' &&
@@ -255,7 +256,7 @@ jobs:
     needs: prepare_matrix
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
