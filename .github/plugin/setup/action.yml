@@ -28,7 +28,7 @@ runs:
       run: |
         git config --global user.email "test@test.com"
         git config --global user.name "Test"
-        ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
+        ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd /moodle && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
 
