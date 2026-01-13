@@ -30,5 +30,18 @@ runs:
         git config --global user.name "Test"
         ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd /moodle && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
+    - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+      shell: bash
+      run: |
+        # Install moodle commands
+        echo "::group::Moodle install output"
+
+        # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+        sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+        moodle-plugin-ci install -vvv --plugin ./plugin --no-init --repo /moodle --ignore-paths "${IGNORE_PATHS}"
+
+        echo "::endgroup::"
 
 
