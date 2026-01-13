@@ -272,13 +272,14 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run codechecker
         if: ${{ inputs.disable_phpcs != true }}
-        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }}
+        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }} ./plugin
         shell: bash
   phplint:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -295,16 +296,14 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run phplint
         if: ${{ inputs.disable_phplint != true }}
-        run: moodle-plugin-ci phplint
+        run: moodle-plugin-ci phplint ./plugin
         shell: bash
   validate:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -321,17 +320,15 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run validate
         if: ${{ inputs.disable_ci_validate != true }}
-        run: moodle-plugin-ci validate
+        run: moodle-plugin-ci validate ./plugin
         shell: bash
   savepoints:
     name: Savepoints
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -347,16 +344,14 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run savepoints
-        run: moodle-plugin-ci savepoints
+        run: moodle-plugin-ci savepoints ./plugin
         shell: bash
   mustache:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -373,16 +368,14 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
-        run: moodle-plugin-ci mustache
+        run: moodle-plugin-ci mustache ./plugin
         shell: bash
   grunt:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -399,42 +392,14 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
-        run: moodle-plugin-ci grunt
-        shell: bash
-  phpcpd:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
-    steps:
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: catalyst/catalyst-moodle-workflows
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
-      - name: Run plugin setup (canonical)
-        uses: ./ci/.github/plugin/setup
-        with:
-          extra_php_extensions: ${{ inputs.extra_php_extensions }}
-          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-      - name: Run phpcpd
-        if: ${{ inputs.disable_phpcpd != true }}
-        run: moodle-plugin-ci phpcpd
+        run: moodle-plugin-ci grunt ./plugin
         shell: bash
   phpmd:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -451,16 +416,14 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run phpmd
         if: ${{ inputs.enable_phpmd == true }}
-        run: moodle-plugin-ci phpmd
+        run: moodle-plugin-ci phpmd ./plugin
         shell: bash
   phpdoc:
-    if: needs.prepare_matrix.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    defaults:
-      run:
-        working-directory: /workspace
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -479,7 +442,7 @@ jobs:
         if: ${{ inputs.disable_phpdoc != true }}
         run: |
           set +e
-          output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc`
+          output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc ./plugin`
           haserrors=$?
           if [[ $haserrors -eq 0 ]]; then
             echo "phpdoc checks - OK"
