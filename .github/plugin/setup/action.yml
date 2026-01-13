@@ -40,7 +40,7 @@ runs:
         # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
         sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
 
-        moodle-plugin-ci install -vvv --plugin ./plugin --no-init --repo /moodle --ignore-paths "${IGNORE_PATHS}"
+        moodle-plugin-ci install -vvv --plugin ./plugin --no-init --repo /moodle
 
         echo "::endgroup::"
 
