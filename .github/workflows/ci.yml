@@ -177,7 +177,7 @@ jobs:
       cancel-in-progress: true
     runs-on: 'ubuntu-latest'
     container:
-      image: ghcr.io/catalyst/${{ matrix.container }}
+      image: ${{ matrix.container }}
       options: --user root
       credentials:
         username: ${{ github.actor }}
@@ -263,7 +263,7 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: 'ubuntu-latest'
     container:
-      image: ghcr.io/catalyst/${{ needs.prepare_matrix.outputs.latest_container }}
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
       options: --user root
       credentials:
         username: ${{ github.actor }}
