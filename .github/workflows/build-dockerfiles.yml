@@ -75,14 +75,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg MOODLE_BRANCH=${{ matrix.moodle-branch }} \
+            --build-arg PHP_VERSION=${{ matrix.php }} \
+            --build-arg NODE_VERSION=${{ matrix.node }} \
+            -t ${{ matrix.container }} \
+            -f docker/Dockerfile docker/
+
       - name: Push Docker image to GHCR
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/
-          push: true
-          tags: ${{ matrix.container }}
-          build-args: |
-            MOODLE_BRANCH=${{ matrix.moodle-branch }}
-            PHP_VERSION=${{ matrix.php }}
-            NODE_VERSION=${{ matrix.node }}
+        run: docker push ${{ matrix.container }}
 
