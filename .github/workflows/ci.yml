@@ -257,7 +257,7 @@ jobs:
           database: 'pgsql'
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Upload canonical workspace
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -269,7 +269,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -284,7 +284,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -299,7 +299,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -313,7 +313,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -328,7 +328,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -343,7 +343,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -358,7 +358,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -373,7 +373,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -387,7 +387,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
@@ -402,7 +402,7 @@ jobs:
     needs: setup-single
     steps:
       - name: Download canonical workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: canonical-workspace
           path: ${{ github.workspace }}
