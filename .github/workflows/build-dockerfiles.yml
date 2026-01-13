@@ -34,8 +34,19 @@ jobs:
           import json
           with open('.github/actions/matrix/matrix_includes.yml') as f:
               data = yaml.safe_load(f)
-          pairs = set((row['moodle-branch'].lower(), row['php']) for row in data['include'])
-          matrix = [{'moodle-branch': b, 'php': p} for b, p in sorted(pairs)]
+            pairs = set((row['moodle-branch'], row['php']) for row in data['include'])
+              def container_name(branch, php):
+                name = f"catalyst-moodle-workflows-{branch}-{php}"
+                name = name.replace('_', '-').lower()
+                return f"ghcr.io/catalyst/{name}:latest"
+            matrix = [
+              {
+                'moodle-branch': b,
+                'php': p,
+                'container': container_name(b, p)
+              }
+              for b, p in sorted(pairs)
+            ]
           print('::set-output name=matrix::' + json.dumps(matrix))
         shell: python
 
