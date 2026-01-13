@@ -179,6 +179,9 @@ jobs:
     container:
       image: ghcr.io/catalyst/${{ matrix.container }}
       options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     services:
       postgres:
         image: "postgres:${{ matrix.pgsql-ver }}"
@@ -258,7 +261,13 @@ jobs:
     name: Common setup for CI checks
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: ghcr.io/catalyst/${{ needs.prepare_matrix.outputs.latest_container }}
+    runs-on: 'ubuntu-latest'
+    container:
+      image: ghcr.io/catalyst/${{ needs.prepare_matrix.outputs.latest_container }}
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: /workspace
