@@ -253,8 +253,7 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: prepare_matrix
+      image: ghcr.io/catalyst/catalyst-moodle-workflows-moodle-405-stable-8.3:latest
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
