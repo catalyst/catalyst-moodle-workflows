@@ -102,6 +102,7 @@ jobs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
       component: ${{ steps.parse-version.outputs.component }}
       highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
+      latest_container: ${{ steps.parse-version.outputs.latest_container }}
       release_required: ${{ (
           contains(github.event_name, 'push') &&
           steps.check-version.outputs.any_changed == 'true' &&
@@ -253,7 +254,8 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/catalyst/catalyst-moodle-workflows-moodle-405-stable-8.3:latest
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
