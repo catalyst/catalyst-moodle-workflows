@@ -5,14 +5,8 @@ inputs:
     description: 'List of additional php packages to install'
   extra_plugin_runners:
     description: 'Command to install dependencies'
-  php_version:
-    description: 'PHP version to use'
-  node_version:
-    description: 'Node version to use'
-  database:
-    description: 'Database type to use'
   moodle_branch:
-    description: 'Moodle branch to use'
+    description: 'Moodle branch to use (for patching)'
 runs:
   using: "composite"
   steps:
@@ -21,74 +15,16 @@ runs:
       with:
         path: plugin
         submodules: true
-    - name: Install node ${{ inputs.node_version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ inputs.node_version }}
-
-    - name: Setup PHP ${{ inputs.php_version }}
-      uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
-      with:
-        php-version: ${{ inputs.php_version }}
-        ini-values: max_input_vars=5000
-        extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
-        coverage: none
-
-    - name: Configure Required Composer Version
-      id: install-composer1
-      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
-      run: |
-        echo "::set-output name=COMPOSER_VERSION::--1"
-      shell: bash
-
-    - name: Update Composer
-      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
-      run: |
-        composer self-update ${{ steps.install-composer1.outputs.COMPOSER_VERSION }}
-      shell: bash
-
-    - name: Initialise moodle-plugin-ci
-      run: |
-        # Initialise moodle-plugin-ci (install via composer)
-        echo "::group::Initialise moodle-plugin-ci"
-
-        composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
-        # Add dirs to $PATH
-        echo $(cd m-ci/bin; pwd) >> $GITHUB_PATH
-        echo $(cd m-ci/vendor/bin; pwd) >> $GITHUB_PATH
-        # PHPUnit depends on en_AU.UTF-8 locale
-        sudo locale-gen en_AU.UTF-8
-
-        echo "::endgroup::"
-      shell: bash
-
     - name: Install dependencies
       if: ${{ inputs.extra_plugin_runners }}
       run: |
         # Install dependencies
         echo "::group::Install dependencies"
-
         ${{ inputs.extra_plugin_runners }}
-
         echo "::endgroup::"
       shell: bash
-
-    - name: Clone Moodle
-      # Clone to a temporary directory
-      run: |
-        echo "::group::Moodle clone output"
-
-        git clone https://github.com/moodle/moodle.git --branch $MOODLE_BRANCH $GITHUB_WORKSPACE/moodletemp
-
-        echo "::endgroup::"
-      shell: bash
-      env:
-        DB: ${{ inputs.database }}
-        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
-
     - name: Install Core Patches
       if: ${{ always() }}
-      # Install core patches to moodle in temporary directory
       run: |
         git config --global user.email "test@test.com"
         git config --global user.name "Test"

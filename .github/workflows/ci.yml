@@ -176,6 +176,9 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
       cancel-in-progress: true
     runs-on: 'ubuntu-latest'
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/catalyst-moodle-workflows-${{ matrix.moodle-branch }}-${{ matrix.php }}:latest
+      options: --user root
     services:
       postgres:
         image: "postgres:${{ matrix.pgsql-ver }}"
@@ -223,9 +226,6 @@ jobs:
         with:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          php_version: ${{ matrix.php }}
-          node_version: ${{ matrix.node }}
-          database: ${{ matrix.database }}
           moodle_branch: ${{ matrix.moodle-branch }}
       - name: Install Moodle and Plugin
         # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
@@ -259,6 +259,9 @@ jobs:
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/catalyst-moodle-workflows-${{ needs.prepare_matrix.outputs.highest_moodle_branch }}-8.3:latest
+      options: --user root
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -272,9 +275,6 @@ jobs:
         with:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          php_version: '8.3'
-          node_version: '20.11'
-          database: 'pgsql'
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Upload canonical workspace
         uses: actions/upload-artifact@v4
