@@ -257,7 +257,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
-    needs: setup-single
     defaults:
       run:
         working-directory: /workspace
