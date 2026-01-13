@@ -74,3 +74,15 @@ jobs:
           ghcr_repo=ghcr.io/${{ github.repository_owner }}/$repo_name:latest
           docker tag $repo_name:latest $ghcr_repo
           docker push $ghcr_repo
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
+
+      - name: Make GHCR image public
+        run: |
+          repo_name=catalyst-moodle-workflows-${{ matrix.moodle-branch }}-${{ matrix.php }}
+          repo_name=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+          ghcr_repo=${{ github.repository_owner }}/$repo_name
+          echo "Making $ghcr_repo public"
+          gh api -X PATCH "/users/${{ github.repository_owner }}/packages/container/$repo_name/visibility" -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
