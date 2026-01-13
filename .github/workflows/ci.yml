@@ -75,6 +75,7 @@ on:
 jobs:
   # Hidden job used only for YAML anchor inheritance, will not run
   _ci_setup: &ci_setup
+    if: false
     needs: setup-single
     runs-on: ubuntu-latest
     steps:
