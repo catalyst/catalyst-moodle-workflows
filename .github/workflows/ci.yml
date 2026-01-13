@@ -98,9 +98,6 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.moodle_branches }}-${{ inputs.extra_plugin_runners }}
       cancel-in-progress: true
     runs-on: 'ubuntu-latest'
-    defaults:
-      run:
-        working-directory: /workspace
     outputs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
       component: ${{ steps.parse-version.outputs.component }}
