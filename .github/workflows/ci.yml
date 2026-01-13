@@ -466,7 +466,6 @@ jobs:
       - savepoints
       - mustache
       - grunt
-      - phpcpd
       - phpmd
       - phpdoc
     # If it matches a standard branch naming convention, it should permit a
