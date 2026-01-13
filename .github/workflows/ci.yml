@@ -253,6 +253,19 @@ jobs:
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: prepare_matrix
+    services:
+      postgres:
+        image: "postgres:${{ matrix.pgsql-ver }}"
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
