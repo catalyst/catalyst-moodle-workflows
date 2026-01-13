@@ -1,0 +1,61 @@
+name: Build Dockerfiles
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci-individual-jobs
+    paths:
+      - '.github/actions/matrix/matrix_includes.yml'
+      - 'docker/**'
+      - '.github/workflows/build-dockerfiles.yml'
+
+jobs:
+  build-dockerfiles:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (for YAML parsing)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Extract unique moodle-branch/php matrix
+        id: set-matrix
+        run: |
+          import yaml
+          import json
+          with open('.github/actions/matrix/matrix_includes.yml') as f:
+              data = yaml.safe_load(f)
+          pairs = set((row['moodle-branch'], row['php']) for row in data['include'])
+          matrix = [{'moodle-branch': b, 'php': p} for b, p in sorted(pairs)]
+          print('::set-output name=matrix::' + json.dumps(matrix))
+        shell: python
+
+  build:
+    needs: build-dockerfiles
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{fromJson(needs.build-dockerfiles.outputs.matrix)}}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          repo_name=catalyst-moodle-workflows-${{ matrix.moodle-branch }}-${{ matrix.php }}
+          repo_name=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+          docker build \
+            --build-arg MOODLE_BRANCH=${{ matrix.moodle-branch }} \
+            --build-arg PHP_VERSION=${{ matrix.php }} \
+            --build-arg NODE_VERSION=20 \
+            -t $repo_name:latest \
+            -f docker/Dockerfile .
