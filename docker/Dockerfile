@@ -16,8 +16,15 @@ RUN add-apt-repository ppa:ondrej/php
 RUN apt-get update && \
     apt-get install -y php${PHP_VERSION} php${PHP_VERSION}-cli php${PHP_VERSION}-xml php${PHP_VERSION}-mbstring php${PHP_VERSION}-zip php${PHP_VERSION}-pgsql php${PHP_VERSION}-mysql php${PHP_VERSION}-gd php${PHP_VERSION}-soap php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-curl php${PHP_VERSION}-intl
 
+
 # Symlink for default 'php' command
 RUN update-alternatives --set php /usr/bin/php${PHP_VERSION}
+
+# Set PHP max_input_vars to at least 5000 for CLI and FPM (if installed)
+RUN echo 'max_input_vars=5000' > /etc/php/${PHP_VERSION}/cli/conf.d/99-max-input-vars.ini \
+        && if [ -d "/etc/php/${PHP_VERSION}/fpm/conf.d" ]; then \
+                 cp /etc/php/${PHP_VERSION}/cli/conf.d/99-max-input-vars.ini /etc/php/${PHP_VERSION}/fpm/conf.d/; \
+             fi
 
 
 # Install Node.js (specific version) and other dependencies
