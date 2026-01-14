@@ -164,7 +164,7 @@ jobs:
           disable_master: ${{ inputs.disable_master }}
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
-  matrix-unit-tests:
+  matrix-unit:
     name: ${{ matrix.branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit tests
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
@@ -561,7 +561,8 @@ jobs:
     needs:
       - pre_job
       - prepare_matrix
-      - matrix
+      - matrix-unit
+      - matrix-behat
       - codechecker
       - phplint
       - validate
