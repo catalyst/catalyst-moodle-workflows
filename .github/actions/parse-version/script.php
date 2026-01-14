@@ -65,15 +65,13 @@ $updates = $updates['updates']['core'] ?? [];
 
 
 // Helper to normalize container name
-function container_image_name($owner, $moodle_branch, $php) {
+function container_image_name($moodle_branch, $php) {
     $repo = 'catalyst-moodle-workflows-'
         . str_replace('_', '-', strtolower($moodle_branch))
         . '-'
         . str_replace('_', '-', strtolower($php));
-    return "ghcr.io/$owner/$repo:latest";
+    return "ghcr.io/catalyst/$repo:latest";
 }
-
-$owner = getenv('GITHUB_REPOSITORY_OWNER') ?: 'catalyst';
 
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
 
@@ -175,8 +173,8 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 
 
 // Add container image name to each entry
-$finalMatrix = array_map(function($entry) use ($owner) {
-    $entry['container'] = container_image_name($owner, $entry['moodle-branch'], $entry['php']);
+$finalMatrix = array_map(function($entry) {
+    $entry['container'] = container_image_name($entry['moodle-branch'], $entry['php']);
     return $entry;
 }, array_values($preparedMatrix));
 
