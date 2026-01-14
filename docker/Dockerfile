@@ -47,9 +47,6 @@ RUN npm install -g grunt-cli
 # Install Docker CLI for behat
 RUN apt-get update && apt-get install -y docker.io
 
-# Optionally, add your user to the docker group
-RUN groupadd -for docker && usermod -aG docker www-data
-
 # Add ci/bin and ci/vendor/bin to PATH
 ENV PATH="/ci/bin:/ci/vendor/bin:${PATH}"
 
