@@ -74,7 +74,6 @@ on:
 
 jobs:
 
-
   pre_job:
    name: check if job needs to run
    runs-on: ubuntu-latest
@@ -165,7 +164,7 @@ jobs:
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
   matrix-unit:
-    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit tests
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
@@ -247,7 +246,7 @@ jobs:
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
   matrix-behat:
-    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - behat tests
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - behat
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
@@ -324,6 +323,10 @@ jobs:
 
           echo "::endgroup::"
         shell: bash
+      - name: Setup behat
+        shell: bash
+        run: |
+          moodle-plugin-ci add-config behat_wwwroot "http://selenium:4444"
       - name: Run behat
         if: ${{ inputs.disable_behat != true }}
         run: moodle-plugin-ci behat --profile chrome
