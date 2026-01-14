@@ -522,9 +522,10 @@ jobs:
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
         run: |
+          npm install -g grunt-cli
           cd ./plugin
           ls
-          moodle-plugin-ci grunt --no-interaction .
+          moodle-plugin-ci grunt --moodle /moodle --no-interaction .
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
