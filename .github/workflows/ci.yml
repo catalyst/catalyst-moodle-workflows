@@ -326,7 +326,7 @@ jobs:
       - name: Setup behat
         shell: bash
         run: |
-          moodle-plugin-ci add-config behat_wwwroot "http://selenium:4444"
+          moodle-plugin-ci add-config '$CFG->behat_wwwroot = "http://selenium:4444";'
       - name: Run behat
         if: ${{ inputs.disable_behat != true }}
         run: moodle-plugin-ci behat --profile chrome
@@ -523,9 +523,7 @@ jobs:
         if: ${{ inputs.disable_grunt != true }}
         run: |
           npm install -g grunt-cli
-          cd ./plugin
-          ls
-          moodle-plugin-ci grunt --moodle /moodle --no-interaction .
+          moodle-plugin-ci grunt --moodle /moodle --no-interaction ./plugin
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
