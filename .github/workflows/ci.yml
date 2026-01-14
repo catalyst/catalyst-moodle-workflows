@@ -261,6 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.container }}
+      options: --user root
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock # Mount the Docker socket
     services:
