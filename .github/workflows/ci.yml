@@ -165,7 +165,7 @@ jobs:
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
   matrix-unit:
-    name: ${{ matrix.branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit tests
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit tests
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
@@ -247,7 +247,7 @@ jobs:
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
   matrix-behat:
-    name: ${{ matrix.branch }} - ${{ matrix.php }} - ${{ matrix.database }} - behat tests
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - behat tests
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
@@ -261,6 +261,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.container }}
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock # Mount the Docker socket
     services:
       pgsql:
         image: "postgres:${{ matrix.pgsql-ver }}"
@@ -451,6 +453,19 @@ jobs:
     container:
       image: ${{ needs.prepare_matrix.outputs.latest_container }}
     needs: prepare_matrix
+    services:
+      pgsql:
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -465,6 +480,17 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=pgsql --repo /moodle --branch ${{ needs.prepare_matrix.outputs.highest_moodle_branch }} --db-type pgsql
+
+          echo "::endgroup::"
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
         run: moodle-plugin-ci mustache ./plugin

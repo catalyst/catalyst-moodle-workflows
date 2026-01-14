@@ -41,6 +41,9 @@ RUN git clone --depth 1 --branch ${MOODLE_BRANCH} https://github.com/moodle/mood
 # Install moodle-plugin-ci
 RUN composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci /ci ^4
 
+# Install Grunt CLI globally
+RUN npm install -g grunt-cli
+
 # Add ci/bin and ci/vendor/bin to PATH
 ENV PATH="/ci/bin:/ci/vendor/bin:${PATH}"
 
