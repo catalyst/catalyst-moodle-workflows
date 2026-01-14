@@ -73,6 +73,7 @@ on:
         required: false
 
 jobs:
+
   pre_job:
    name: check if job needs to run
    runs-on: ubuntu-latest
@@ -100,6 +101,8 @@ jobs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
       component: ${{ steps.parse-version.outputs.component }}
       highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
+      latest_container: ${{ steps.parse-version.outputs.latest_container }}
+      latest_pgsql_ver: ${{ steps.parse-version.outputs.latest_pgsql_ver }}
       release_required: ${{ (
           contains(github.event_name, 'push') &&
           steps.check-version.outputs.any_changed == 'true' &&
@@ -119,7 +122,7 @@ jobs:
             )
           ) }}
 
-          echo "::set-output name=publishable::$publishable"
+          echo "publishable=$publishable" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -160,22 +163,23 @@ jobs:
           disable_master: ${{ inputs.disable_master }}
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
-
-  setup:
-    name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }}
+  matrix-unit:
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - unit
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
     env:
       IGNORE_PATHS: tests/fixtures
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-unit
       cancel-in-progress: true
-    runs-on: 'ubuntu-latest'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container }}
     services:
-      postgres:
+      pgsql:
         image: "postgres:${{ matrix.pgsql-ver }}"
         env:
           POSTGRES_USER: 'postgres'
@@ -219,24 +223,388 @@ jobs:
       - name: Run plugin setup
         uses: ./ci/.github/plugin/setup
         with:
-          codechecker_max_warnings: ${{ inputs.codechecker_max_warnings }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          disable_behat:    ${{ inputs.disable_behat }}
-          disable_grunt:    ${{ inputs.disable_grunt }}
-          disable_mustache: ${{ inputs.disable_mustache }}
-          disable_phpdoc:   ${{ inputs.disable_phpdoc }}
-          disable_phpcs:    ${{ inputs.disable_phpcs }}
-          disable_phplint:  ${{ inputs.disable_phplint }}
-          disable_phpunit:  ${{ inputs.disable_phpunit }}
-          enable_phpmd:     ${{ inputs.enable_phpmd }}
-          disable_phpcpd:    ${{ inputs.disable_phpcpd }}
-          disable_ci_validate: ${{ inputs.disable_ci_validate }}
-          highest_moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
 
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=${{ matrix.database }} --repo /moodle --branch ${{ matrix.moodle-branch }} --db-type ${{ matrix.database }}
+
+          echo "::endgroup::"
+        shell: bash
+      - name: Run phpunit
+        run: |
+          moodle-plugin-ci phpunit
+          cd moodle
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
+        shell: bash
+  matrix-behat:
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.php }} - ${{ matrix.database }} - behat
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_phpunit != true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-behat
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container }}
+      options: --user root
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock # Mount the Docker socket
+    services:
+      pgsql:
+        image: "postgres:${{ matrix.pgsql-ver }}"
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: "mariadb:${{ matrix.mariadb-ver }}"
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Set custom environment variables
+        run: |
+          USER_IGNORE_PATHS="${{ inputs.ignore_paths }}"
+          if [ -n "${USER_IGNORE_PATHS}" ]; then
+            IGNORE_PATHS="${IGNORE_PATHS},${USER_IGNORE_PATHS}"
+            echo "IGNORE_PATHS=${IGNORE_PATHS}" >> $GITHUB_ENV
+          fi
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=${{ matrix.database }} --repo /moodle --branch ${{ matrix.moodle-branch }} --db-type ${{ matrix.database }}
+
+          echo "::endgroup::"
+        shell: bash
+      - name: Setup behat
+        shell: bash
+        run: |
+          moodle-plugin-ci add-config '$CFG->behat_wwwroot = "http://selenium:4444";'
+      - name: Run behat
+        if: ${{ inputs.disable_behat != true }}
+        run: moodle-plugin-ci behat --profile chrome
+        shell: bash
+  codechecker:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run codechecker
+        if: ${{ inputs.disable_phpcs != true }}
+        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }} ./plugin
+        shell: bash
+  phplint:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run phplint
+        if: ${{ inputs.disable_phplint != true }}
+        run: moodle-plugin-ci phplint ./plugin
+        shell: bash
+  validate:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    services:
+      pgsql:
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=pgsql --repo /moodle --branch ${{ needs.prepare_matrix.outputs.highest_moodle_branch }} --db-type pgsql
+
+          echo "::endgroup::"
+      - name: Run validate
+        if: ${{ inputs.disable_ci_validate != true }}
+        run: moodle-plugin-ci validate ./plugin
+        shell: bash
+  savepoints:
+    name: Savepoints
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run savepoints
+        run: moodle-plugin-ci savepoints ./plugin
+        shell: bash
+  mustache:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    services:
+      pgsql:
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Install Moodle and Plugin
+        # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+        run: |
+          # Install moodle commands
+          echo "::group::Moodle install output"
+          # This is a workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306 - we disable the git repository validation to allow folder cloning.
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' /ci/src/Validate.php
+
+          moodle-plugin-ci install -vvv --plugin ./plugin --db-host=pgsql --repo /moodle --branch ${{ needs.prepare_matrix.outputs.highest_moodle_branch }} --db-type pgsql
+
+          echo "::endgroup::"
+      - name: Run mustache
+        if: ${{ inputs.disable_mustache != true }}
+        run: moodle-plugin-ci mustache
+        shell: bash
+  grunt:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run grunt
+        if: ${{ inputs.disable_grunt != true }}
+        run: |
+          cd /moodle
+          npm install
+          cd -
+          moodle-plugin-ci grunt --moodle /moodle --no-interaction -vvv ./plugin
+        shell: bash
+  phpmd:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run phpmd
+        if: ${{ inputs.enable_phpmd == true }}
+        run: moodle-plugin-ci phpmd ./plugin
+        shell: bash
+  phpdoc:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare_matrix.outputs.latest_container }}
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+      - name: Run phpdoc
+        if: ${{ inputs.disable_phpdoc != true }}
+        run: |
+          set +e
+          output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc ./plugin`
+          haserrors=$?
+          if [[ $haserrors -eq 0 ]]; then
+            echo "phpdoc checks - OK"
+            exit 0
+          fi
+          output=`echo "$output" | grep -v 'Class ( is not documented' | grep -v 'Could not connect to debugging client.'`
+          output=`echo "$output" | grep -B1 'Line'`
+          currentdir=$(pwd)
+          if [[ "$output" ]]; then
+            echo "$output" | sed -e "s,$currentdir/,,g" | sed -e "s,^moodle/,,g" | tee $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "phpdoc checks - OK"
+        shell: bash
   release:
     name: Release to the Moodle plugin directory
-    needs: [setup, prepare_matrix]
+    needs:
+      - pre_job
+      - prepare_matrix
+      - matrix-unit
+      - matrix-behat
+      - codechecker
+      - phplint
+      - validate
+      - savepoints
+      - mustache
+      - grunt
+      - phpmd
+      - phpdoc
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
     # Patterns allowed:
@@ -253,7 +621,7 @@ jobs:
         env:
           SECRET_TO_CHECK: '${{ secrets.moodle_org_token }}'
         if: ${{ env.SECRET_TO_CHECK != '' }}
-        run: echo "::set-output name=has-secrets::true"
+        run: echo "has-secrets=true" >> $GITHUB_OUTPUT
 
       - name: Check out CI code
         uses: actions/checkout@v3
