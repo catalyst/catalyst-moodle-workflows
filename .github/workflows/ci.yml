@@ -521,7 +521,10 @@ jobs:
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
-        run: moodle-plugin-ci grunt ./plugin
+        run: |
+          cd ./plugin
+          ls
+          moodle-plugin-ci grunt --no-interaction .
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
