@@ -7,6 +7,10 @@ inputs:
     description: 'Command to install dependencies'
   moodle_branch:
     description: 'Moodle branch to use (for patching)'
+  database:
+    description: 'Database type (e.g. pgsql, mariadb). Defaults to pgsql. For matrix jobs, set to ${{ matrix.database }}.'
+    required: false
+    default: 'pgsql'
 runs:
   using: "composite"
   steps:
@@ -37,7 +41,7 @@ runs:
         coverage: none
 
     - name: Configure Required Composer Version
-      id: install-composer1
+      id: install-composer
       if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
         echo "::set-output name=COMPOSER_VERSION::--1"
@@ -85,7 +89,7 @@ runs:
         echo "::endgroup::"
       shell: bash
       env:
-        DB: ${{ matrix.database }}
+        DB: ${{ inputs.database }}
         MOODLE_BRANCH: ${{ inputs.moodle_branch }}
 
     - name: Install Core Patches
@@ -98,6 +102,7 @@ runs:
       shell: bash
 
     - name: Install Moodle and Plugin
+      if: ${{ inputs.database != '' }}
       # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
       run: |
         # Install moodle commands
@@ -111,5 +116,5 @@ runs:
         echo "::endgroup::"
       shell: bash
       env:
-        DB: ${{ matrix.database }}
+        DB: ${{ inputs.database }}
         MOODLE_BRANCH: ${{ inputs.moodle_branch }}
