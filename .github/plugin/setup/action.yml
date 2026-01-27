@@ -1,5 +1,12 @@
 name: 'Plugin setup'
 description: 'Run plugin setup'
+inputs:
+  extra_php_extensions:
+    description: 'List of additional php packages to install'
+  extra_plugin_runners:
+    description: 'Command to install dependencies'
+  moodle_branch:
+    description: 'Moodle branch to use (for patching)'
 runs:
   using: "composite"
   steps:
@@ -31,13 +38,13 @@ runs:
 
     - name: Configure Required Composer Version
       id: install-composer1
-      if: ${{ matrix.moodle-branch == 'MOODLE_32_STABLE' || matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
         echo "::set-output name=COMPOSER_VERSION::--1"
       shell: bash
 
     - name: Update Composer
-      if: ${{ matrix.moodle-branch == 'MOODLE_32_STABLE' || matrix.moodle-branch == 'MOODLE_33_STABLE' }}
+      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
         composer self-update ${{ steps.install-composer1.outputs.COMPOSER_VERSION }}
       shell: bash
@@ -79,7 +86,7 @@ runs:
       shell: bash
       env:
         DB: ${{ matrix.database }}
-        MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
 
     - name: Install Core Patches
       if: ${{ always() }}
@@ -87,7 +94,7 @@ runs:
       run: |
         git config --global user.email "test@test.com"
         git config --global user.name "Test"
-        ((test -f plugin/patch/${{ matrix.moodle-branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ matrix.moodle-branch }}.diff) || echo No patch found;)
+        ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
     - name: Install Moodle and Plugin
@@ -105,4 +112,4 @@ runs:
       shell: bash
       env:
         DB: ${{ matrix.database }}
-        MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
