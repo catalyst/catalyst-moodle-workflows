@@ -8,9 +8,9 @@ inputs:
   moodle_branch:
     description: 'Moodle branch to use (for patching)'
   database:
-    description: 'Database type (e.g. pgsql, mariadb). Defaults to pgsql. For matrix jobs, set to ${{ matrix.database }}.'
+    description: 'Database type (e.g. pgsql, mariadb). Leave empty to skip installation.'
     required: false
-    default: 'pgsql'
+    default: ''
 runs:
   using: "composite"
   steps:
