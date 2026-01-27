@@ -63,6 +63,16 @@ $matrix = Yaml::parse($matrixYaml);
 $updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8'), true);
 $updates = $updates['updates']['core'] ?? [];
 
+
+// Helper to normalize container name
+function container_image_name($moodle_branch, $php) {
+    $repo = 'catalyst-moodle-workflows-'
+        . str_replace('_', '-', strtolower($moodle_branch))
+        . '-'
+        . str_replace('_', '-', strtolower($php));
+    return "ghcr.io/catalyst/$repo:latest";
+}
+
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
 
     if (!isset($entry)) {
@@ -161,12 +171,49 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     return false;
 });
 
-$jsonMatrix = json_encode(['include' => array_values($preparedMatrix)], JSON_UNESCAPED_SLASHES);
+
+// Add container image name to each entry
+$finalMatrix = array_map(function($entry) {
+    $entry['container'] = container_image_name($entry['moodle-branch'], $entry['php']);
+    return $entry;
+}, array_values($preparedMatrix));
+
+$jsonMatrix = json_encode(['include' => $finalMatrix], JSON_UNESCAPED_SLASHES);
 output('matrix', $jsonMatrix);
 
 // Output the component / plugin name (which would be useful e.g. for a release)
 output('component', $plugin->component);
 
+
 // Output the highest available moodle branch in this set, which will be used to
 // determine whether or not various tests/tasks will run, such as grunt.
-output('highest_moodle_branch', reset($preparedMatrix)['moodle-branch'] ?? '');
+$highestMoodleBranch = reset($preparedMatrix)['moodle-branch'] ?? '';
+output('highest_moodle_branch', $highestMoodleBranch);
+
+// Find the highest PHP version for the highest moodle branch
+$phpVersions = [];
+foreach ($finalMatrix as $entry) {
+    if ($entry['moodle-branch'] === $highestMoodleBranch) {
+        $phpVersions[] = $entry['php'];
+    }
+}
+if (!empty($phpVersions)) {
+    // Use version_compare to find the highest PHP version
+    usort($phpVersions, 'version_compare');
+    $highestPhp = end($phpVersions);
+    // Find the container for this combo
+    foreach ($finalMatrix as $entry) {
+        if ($entry['moodle-branch'] === $highestMoodleBranch && $entry['php'] === $highestPhp) {
+            output('latest_container', $entry['container']);
+            if (isset($entry['pgsql-ver'])) {
+                output('latest_pgsql_ver', $entry['pgsql-ver']);
+            } else {
+                output('latest_pgsql_ver', '');
+            }
+            break;
+        }
+    }
+} else {
+    output('latest_container', '');
+    output('latest_pgsql_ver', '');
+}

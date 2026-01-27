@@ -1,0 +1,88 @@
+name: Build Dockerfiles
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/actions/matrix/matrix_includes.yml'
+      - 'docker/**'
+      - '.github/workflows/build-dockerfiles.yml'
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (for YAML parsing)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Extract unique moodle-branch/php matrix
+        id: set-matrix
+        run: |
+          import yaml
+          import json
+          with open('.github/actions/matrix/matrix_includes.yml') as f:
+              data = yaml.safe_load(f)
+          pairs = set((row['moodle-branch'], row['php']) for row in data['include'])
+
+          def container_name(branch, php):
+              name = f"catalyst-moodle-workflows-{branch}-{php}"
+              name = name.replace('_', '-').lower()
+              return f"ghcr.io/catalyst/{name}:latest"
+
+          def find_node(branch, php):
+              for row in data['include']:
+                  if row['moodle-branch'] == branch and row['php'] == php:
+                      return row.get('node', 20)
+              return 20
+
+          matrix = [
+              {
+                  'moodle-branch': b,
+                  'php': p,
+                  'node': find_node(b, p),
+                  'container': container_name(b, p)
+              }
+              for b, p in sorted(pairs)
+          ]
+          print('::set-output name=matrix::' + json.dumps(matrix))
+        shell: python
+
+  build:
+    name: ${{ matrix.container }}
+    needs: build-dockerfiles
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{fromJson(needs.build-dockerfiles.outputs.matrix)}}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg MOODLE_BRANCH=${{ matrix.moodle-branch }} \
+            --build-arg PHP_VERSION=${{ matrix.php }} \
+            --build-arg NODE_VERSION=${{ matrix.node }} \
+            -t ${{ matrix.container }} \
+            -f docker/Dockerfile docker/
+
+      - name: Push Docker image to GHCR
+        run: docker push ${{ matrix.container }}
