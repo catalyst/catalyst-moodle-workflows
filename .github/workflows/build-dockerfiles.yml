@@ -61,11 +61,11 @@ jobs:
 
   build:
     name: ${{ matrix.container }}
-    needs: build-dockerfiles
+    needs: build-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{fromJson(needs.build-dockerfiles.outputs.matrix)}}
+        include: ${{fromJson(needs.build-matrix.outputs.matrix)}}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
