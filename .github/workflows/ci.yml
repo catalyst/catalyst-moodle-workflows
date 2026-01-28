@@ -301,7 +301,6 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-          database: pgsql
       - name: Run codechecker
         if: ${{ inputs.disable_phpcs != true }}
         run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }} ./plugin
@@ -324,7 +323,6 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-          database: pgsql
       - name: Run phplint
         if: ${{ inputs.disable_phplint != true }}
         run: moodle-plugin-ci phplint ./plugin
@@ -360,6 +358,7 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+          database: 'pgsql'
       - name: Run validate
         if: ${{ inputs.disable_ci_validate != true }}
         run: moodle-plugin-ci validate ./plugin
@@ -390,6 +389,29 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup (canonical)
+        uses: ./ci/.github/plugin/setup
+        with:
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+          
+      - name: Run mustache
+        if: ${{ inputs.disable_mustache != true }}
+        run: moodle-plugin-ci mustache ./plugin
+        shell: bash
+  grunt:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    needs: prepare_matrix
     services:
       pgsql:
         image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
@@ -417,28 +439,7 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-      - name: Run mustache
-        if: ${{ inputs.disable_mustache != true }}
-        run: moodle-plugin-ci mustache
-        shell: bash
-  grunt:
-    if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
-    needs: prepare_matrix
-    steps:
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: catalyst/catalyst-moodle-workflows
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
-      - name: Run plugin setup (canonical)
-        uses: ./ci/.github/plugin/setup
-        with:
-          extra_php_extensions: ${{ inputs.extra_php_extensions }}
-          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+          database: 'pgsql'
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
         run: |
