@@ -190,18 +190,24 @@ output('component', $plugin->component);
 $highestMoodleBranch = reset($preparedMatrix)['moodle-branch'] ?? '';
 output('highest_moodle_branch', $highestMoodleBranch);
 
-// Find the highest PHP version for the highest moodle branch
+// Find the highest PHP and Node.js versions for the highest moodle branch
 $phpVersions = [];
+$nodeVersions = [];
 foreach ($finalMatrix as $entry) {
     if ($entry['moodle-branch'] === $highestMoodleBranch) {
         $phpVersions[] = $entry['php'];
+        if (isset($entry['node'])) {
+            $nodeVersions[] = $entry['node'];
+        }
     }
 }
 if (!empty($phpVersions)) {
     // Use version_compare to find the highest PHP version
     usort($phpVersions, 'version_compare');
     $highestPhp = end($phpVersions);
-    // Find the container for this combo
+    output('highest_php', $highestPhp);
+    // Find the container and node for this combo
+    $foundNode = '';
     foreach ($finalMatrix as $entry) {
         if ($entry['moodle-branch'] === $highestMoodleBranch && $entry['php'] === $highestPhp) {
             output('latest_container', $entry['container']);
@@ -210,10 +216,21 @@ if (!empty($phpVersions)) {
             } else {
                 output('latest_pgsql_ver', '');
             }
+            if (isset($entry['node'])) {
+                $foundNode = $entry['node'];
+            }
             break;
         }
     }
+    // If node version not found above, fallback to highest node version
+    if (!$foundNode && !empty($nodeVersions)) {
+        usort($nodeVersions, 'version_compare');
+        $foundNode = end($nodeVersions);
+    }
+    output('highest_node', $foundNode);
 } else {
     output('latest_container', '');
     output('latest_pgsql_ver', '');
+    output('highest_php', '');
+    output('highest_node', '');
 }
