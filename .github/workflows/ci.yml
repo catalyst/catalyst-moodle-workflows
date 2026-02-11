@@ -416,7 +416,7 @@ jobs:
           
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
-        run: moodle-plugin-ci mustache ./plugin
+        run: moodle-plugin-ci mustache ./plugin --moodle $GITHUB_WORKSPACE/moodletemp
         shell: bash
   grunt:
     if: needs.pre_job.outputs.should_skip != 'true'
@@ -455,10 +455,10 @@ jobs:
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
         run: |
-          cd /moodle
+          cd $GITHUB_WORKSPACE/moodletemp
           npm install
           cd -
-          moodle-plugin-ci grunt --moodle /moodle --no-interaction -vvv ./plugin
+          moodle-plugin-ci grunt --moodle $GITHUB_WORKSPACE/moodletemp --no-interaction -vvv ./plugin
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
