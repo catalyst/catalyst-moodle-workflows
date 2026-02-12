@@ -431,7 +431,7 @@ jobs:
           database: 'pgsql'
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
-        run: moodle-plugin-ci mustache ./plugin --moodle $GITHUB_WORKSPACE/moodletemp
+        run: moodle-plugin-ci mustache
         shell: bash
   grunt:
     if: needs.pre_job.outputs.should_skip != 'true'
@@ -470,10 +470,7 @@ jobs:
       - name: Run grunt
         if: ${{ inputs.disable_grunt != true }}
         run: |
-          cd $GITHUB_WORKSPACE/moodletemp
-          npm install
-          cd -
-          moodle-plugin-ci grunt ./plugin
+          moodle-plugin-ci grunt
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
