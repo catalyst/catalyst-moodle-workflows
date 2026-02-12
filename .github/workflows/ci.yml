@@ -399,6 +399,19 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     needs: prepare_matrix
+    services:
+      pgsql:
+        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
     steps:
       - name: Check out CI code
         uses: actions/checkout@v3
@@ -413,7 +426,9 @@ jobs:
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
-          
+          php: ${{ needs.prepare_matrix.outputs.highest_php }}
+          node: ${{ needs.prepare_matrix.outputs.highest_node }}
+          database: 'pgsql'
       - name: Run mustache
         if: ${{ inputs.disable_mustache != true }}
         run: moodle-plugin-ci mustache ./plugin --moodle $GITHUB_WORKSPACE/moodletemp
@@ -458,7 +473,7 @@ jobs:
           cd $GITHUB_WORKSPACE/moodletemp
           npm install
           cd -
-          moodle-plugin-ci grunt --moodle $GITHUB_WORKSPACE/moodletemp --no-interaction -vvv ./plugin
+          moodle-plugin-ci grunt ./plugin
         shell: bash
   phpmd:
     if: needs.pre_job.outputs.should_skip != 'true'
