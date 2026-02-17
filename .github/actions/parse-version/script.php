@@ -58,13 +58,10 @@ require_once($versionFilePath);
 $matrixYaml = file_get_contents("$workspace/ci/.github/actions/matrix/matrix_includes.yml");
 $matrix = Yaml::parse($matrixYaml);
 
-// Version breakpoints are sourced from:
-// https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=$lowestSupportedBranch
-$updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8'), true);
-$updates = $updates['updates']['core'] ?? [];
+// Load local branch definitions
+$branchesJson = file_get_contents("$workspace/ci/moodle_branches.json");
+$updates = json_decode($branchesJson, true)['core'] ?? [];
 
-
-// Helper to normalize container name
 function container_image_name($moodle_branch, $php) {
     $repo = 'catalyst-moodle-workflows-'
         . str_replace('_', '-', strtolower($moodle_branch))
@@ -73,8 +70,7 @@ function container_image_name($moodle_branch, $php) {
     return "ghcr.io/catalyst/$repo:latest";
 }
 
-$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
-
+$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates) {
     if (!isset($entry)) {
         return false;
     }
@@ -82,11 +78,7 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     // Regex and replacement templates - Partially generated from https://regex101.com/
     $re = '/MOODLE_(.*)_STABLE/m';
     $subst = '$1';
-    $coreVersion = preg_replace(
-        $re,
-        $subst,
-        $entry['moodle-branch'],
-    );
+    $coreVersion = preg_replace($re, $subst, $entry['moodle-branch']);
     $disable_main = !empty($_SERVER['disable_master']) || !empty($_SERVER['disable_main']);
 
     // Check that the php version for the workflow is higher than the minimum set by the option.
@@ -98,15 +90,8 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
     // Example: MOODLE_35_STABLE MOODLE_36_STABLE
     // Note: They are space separated.
     if (!empty($_SERVER['filter'])) {
-        $filter = $_SERVER['filter'];
-        $filter = preg_split('/\s+/', $filter);
-        // Otherwise if not defined, it should check if the 'filter' variable has been provided, and use the matching versions there instead.
-        if (in_array($entry['moodle-branch'], $filter)) {
-            return true;
-        }
-
-        // If they are NOT specified, do NOT run those branches in tests.
-        return false;
+        $filter = preg_split('/\s+/', $_SERVER['filter']);
+        return in_array($entry['moodle-branch'], $filter);
     }
 
     // Determine whether or not to include the main/dev branch.
@@ -127,14 +112,8 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
         if ($entry['moodle-branch'] === 'main') {
             // If the upper range does NOT exist in the matrix, then assume the user wants the main to be tested.
             $exists = false;
-            foreach ($matrix['include'] as $row) {
-                if (!isset($row)) continue; // Skip nulls.
-                $currentVersion = preg_replace(
-                    $re,
-                    $subst,
-                    $row['moodle-branch'],
-                ); // e.g. 39, 310, 311, 400, etc.
-                if ($currentVersion == $upper) {
+            foreach ($updates as $apiVersion) {
+                if ($apiVersion['branch'] == $upper) {
                     $exists = true;
                     break;
                 }
@@ -160,9 +139,8 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
         // on regex) is higher than the lowest supported, if so, include it in
         // the matrix.
         foreach ($updates as $apiVersion) {
-            $branchValue = str_replace('.', '', $apiVersion['branch']);
-            $branch = "MOODLE_{$branchValue}_STABLE";
-            if ($entry['moodle-branch'] === $branch && $plugin->requires <= $apiVersion['version']) {
+            if ($entry['moodle-branch'] === "MOODLE_" . str_replace('.', '', $apiVersion['branch']) . "_STABLE"
+                && $plugin->requires <= $apiVersion['version']) {
                 return true;
             }
         }
@@ -170,7 +148,6 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 
     return false;
 });
-
 
 // Add container image name to each entry
 $finalMatrix = array_map(function($entry) {
@@ -183,7 +160,6 @@ output('matrix', $jsonMatrix);
 
 // Output the component / plugin name (which would be useful e.g. for a release)
 output('component', $plugin->component);
-
 
 // Output the highest available moodle branch in this set, which will be used to
 // determine whether or not various tests/tasks will run, such as grunt.
@@ -201,6 +177,7 @@ foreach ($finalMatrix as $entry) {
         }
     }
 }
+
 if (!empty($phpVersions)) {
     // Use version_compare to find the highest PHP version
     usort($phpVersions, 'version_compare');
@@ -211,11 +188,7 @@ if (!empty($phpVersions)) {
     foreach ($finalMatrix as $entry) {
         if ($entry['moodle-branch'] === $highestMoodleBranch && $entry['php'] === $highestPhp) {
             output('latest_container', $entry['container']);
-            if (isset($entry['pgsql-ver'])) {
-                output('latest_pgsql_ver', $entry['pgsql-ver']);
-            } else {
-                output('latest_pgsql_ver', '');
-            }
+            output('latest_pgsql_ver', $entry['pgsql-ver'] ?? '');
             if (isset($entry['node'])) {
                 $foundNode = $entry['node'];
             }

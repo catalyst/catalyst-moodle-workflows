@@ -1,0 +1,18 @@
+{
+  "core": [
+    { "branch": "3.8", "version": 2020082800 },
+    { "branch": "3.9", "version": 2020120700 },
+    { "branch": "3.10", "version": 2021041200 },
+    { "branch": "3.11", "version": 2022080100 },
+    { "branch": "4.0", "version": 2022080100 },
+    { "branch": "4.1", "version": 2022112800 },
+    { "branch": "4.2", "version": 2023042400 },
+    { "branch": "4.3", "version": 2023100900 },
+    { "branch": "4.4", "version": 2024042200 },
+    { "branch": "4.5", "version": 2024100700 },
+    { "branch": "5.0", "version": 2025041400 },
+    { "branch": "5.1", "version": 2025100600 },
+    { "branch": "5.2", "version": 2026040200 },
+    { "branch": "main", "version": 9999999999 }
+  ]
+}
