@@ -60,7 +60,17 @@ $matrix = Yaml::parse($matrixYaml);
 
 // Version breakpoints are sourced from:
 // https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=$lowestSupportedBranch
-$updates = json_decode(file_get_contents('https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8'), true);
+$updatesUrl = 'https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8';
+$updatesResponse = @file_get_contents($updatesUrl);
+if ($updatesResponse === false) {
+    fwrite(STDERR, "Error: Failed to fetch Moodle updates from $updatesUrl\n");
+    exit(1);
+}
+$updates = json_decode($updatesResponse, true);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    fwrite(STDERR, "Error: Failed to parse Moodle updates JSON: " . json_last_error_msg() . "\n");
+    exit(1);
+}
 $updates = $updates['updates']['core'] ?? [];
 
 
