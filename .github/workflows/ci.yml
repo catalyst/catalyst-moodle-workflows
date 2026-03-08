@@ -163,7 +163,7 @@ jobs:
           min_php: ${{ inputs.min_php }}
 
   phpunit:
-    name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }} - phpunit
+    name: ${{ matrix.moodle-branch-short }} - ${{ matrix.database }} - php${{ matrix.php }} - phpunit
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true'
     strategy:
@@ -228,7 +228,7 @@ jobs:
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
   behat:
-    name: ${{ matrix.moodle-branch }} - ${{ matrix.database }} - php ${{ matrix.php }} - ${{ needs.prepare_matrix.outputs.component }} - behat
+    name: ${{ matrix.moodle-branch-short }} - ${{ matrix.database }} - php${{ matrix.php }} - behat
     needs: prepare_matrix
     if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_behat != true
     strategy:

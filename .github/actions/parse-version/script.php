@@ -204,9 +204,10 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 });
 
 
-// Add container image name to each entry
+// Add container image name and short branch name to each entry
 $finalMatrix = array_map(function($entry) {
     $entry['container'] = container_image_name($entry['moodle-branch'], $entry['php']);
+    $entry['moodle-branch-short'] = preg_replace('/MOODLE_(.*)_STABLE/', '$1', $entry['moodle-branch']);
     return $entry;
 }, array_values($preparedMatrix));
 
