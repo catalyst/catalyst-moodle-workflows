@@ -67,6 +67,7 @@ curl_setopt_array($ch, [
     CURLOPT_HEADER         => true,
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_TIMEOUT        => 30,
+    CURLOPT_USERAGENT      => "MoodleBot/5.1 (+https://catalyst-au.net)",
 ]);
 $rawResponse   = curl_exec($ch);
 $httpCode      = curl_getinfo($ch, CURLINFO_HTTP_CODE);
