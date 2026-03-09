@@ -162,133 +162,6 @@ jobs:
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
 
-  phpunit:
-    name: ${{ matrix.moodle-branch-short }} - phpunit - php${{ matrix.php }} - ${{ matrix.database }}
-    needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
-    env:
-      IGNORE_PATHS: tests/fixtures
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-phpunit
-      cancel-in-progress: true
-    runs-on: 'ubuntu-latest'
-    services:
-      postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
-        env:
-          POSTGRES_USER: 'postgres'
-          POSTGRES_HOST_AUTH_METHOD: 'trust'
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-        ports:
-          - 5432:5432
-      mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
-        env:
-          MYSQL_USER: 'root'
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
-          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
-          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-    steps:
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: catalyst/catalyst-moodle-workflows
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
-      - name: Run plugin setup
-        uses: ./ci/.github/plugin/setup
-        with:
-          php: ${{ matrix.php }}
-          node: ${{ matrix.node }}
-          extra_php_extensions: ${{ inputs.extra_php_extensions }}
-          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          moodle_branch: ${{ matrix.moodle-branch }}
-          database: ${{ matrix.database }}
-      - name: Run phpunit
-        if: ${{ always() && inputs.disable_phpunit != 'true' }}
-        run: |
-          moodle-plugin-ci phpunit
-          cd moodle
-          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
-          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
-        shell: bash
-  behat:
-    name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
-    needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_behat != true
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
-    env:
-      IGNORE_PATHS: tests/fixtures
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-behat
-      cancel-in-progress: true
-    runs-on: 'ubuntu-latest'
-    services:
-      postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
-        env:
-          POSTGRES_USER: 'postgres'
-          POSTGRES_HOST_AUTH_METHOD: 'trust'
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-        ports:
-          - 5432:5432
-      mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
-        env:
-          MYSQL_USER: 'root'
-          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
-          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
-          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-    steps:
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: catalyst/catalyst-moodle-workflows
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
-      - name: Run plugin setup
-        uses: ./ci/.github/plugin/setup
-        with:
-          php: ${{ matrix.php }}
-          node: ${{ matrix.node }}
-          extra_php_extensions: ${{ inputs.extra_php_extensions }}
-          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
-          moodle_branch: ${{ matrix.moodle-branch }}
-          database: ${{ matrix.database }}
-      - name: Run behat
-        if: ${{ always() && inputs.disable_behat != 'true' }}
-        run: moodle-plugin-ci behat --profile chrome
-        shell: bash
-
   codechecker:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
@@ -534,6 +407,132 @@ jobs:
             exit 1
           fi
           echo "phpdoc checks - OK"
+        shell: bash
+  phpunit:
+    name: ${{ matrix.moodle-branch-short }} - phpunit - php${{ matrix.php }} - ${{ matrix.database }}
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-phpunit
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    services:
+      postgres:
+        image: "postgres:${{ matrix.pgsql-ver }}"
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: "mariadb:${{ matrix.mariadb-ver }}"
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ matrix.php }}
+          node: ${{ matrix.node }}
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+          database: ${{ matrix.database }}
+      - name: Run phpunit
+        if: ${{ always() && inputs.disable_phpunit != 'true' }}
+        run: |
+          moodle-plugin-ci phpunit
+          cd moodle
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
+        shell: bash
+  behat:
+    name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_behat != true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-behat
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    services:
+      postgres:
+        image: "postgres:${{ matrix.pgsql-ver }}"
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: "mariadb:${{ matrix.mariadb-ver }}"
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ matrix.php }}
+          node: ${{ matrix.node }}
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+          database: ${{ matrix.database }}
+      - name: Run behat
+        if: ${{ always() && inputs.disable_behat != 'true' }}
+        run: moodle-plugin-ci behat --profile chrome
         shell: bash
   release:
     name: Release to the Moodle plugin directory
