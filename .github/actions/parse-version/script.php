@@ -214,6 +214,15 @@ $finalMatrix = array_map(function($entry) {
 $jsonMatrix = json_encode(['include' => $finalMatrix], JSON_UNESCAPED_SLASHES);
 output('matrix', $jsonMatrix);
 
+// When behat or phpunit is disabled, output an empty matrix so no jobs appear in the UI at all.
+$disableBehat = !empty($_SERVER['disable_behat']) && $_SERVER['disable_behat'] !== 'false';
+$behatMatrix = $disableBehat ? json_encode(['include' => []], JSON_UNESCAPED_SLASHES) : $jsonMatrix;
+output('behat_matrix', $behatMatrix);
+
+$disablePhpunit = !empty($_SERVER['disable_phpunit']) && $_SERVER['disable_phpunit'] !== 'false';
+$phpunitMatrix = $disablePhpunit ? json_encode(['include' => []], JSON_UNESCAPED_SLASHES) : $jsonMatrix;
+output('phpunit_matrix', $phpunitMatrix);
+
 // Output the component / plugin name (which would be useful e.g. for a release)
 output('component', $plugin->component);
 

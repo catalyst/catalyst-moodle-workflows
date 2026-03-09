@@ -95,6 +95,8 @@ jobs:
     runs-on: 'ubuntu-latest'
     outputs:
       matrix: ${{ steps.parse-version.outputs.matrix }}
+      behat_matrix: ${{ steps.parse-version.outputs.behat_matrix }}
+      phpunit_matrix: ${{ steps.parse-version.outputs.phpunit_matrix }}
       component: ${{ steps.parse-version.outputs.component }}
       highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
       latest_container: ${{ steps.parse-version.outputs.latest_container }}
@@ -159,6 +161,8 @@ jobs:
           "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
         env:
           disable_master: ${{ inputs.disable_master }}
+          disable_behat: ${{ inputs.disable_behat }}
+          disable_phpunit: ${{ inputs.disable_phpunit }}
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
 
@@ -414,7 +418,7 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.phpunit_matrix) }}
     env:
       IGNORE_PATHS: tests/fixtures
     concurrency:
@@ -466,7 +470,6 @@ jobs:
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
       - name: Run phpunit
-        if: ${{ always() && inputs.disable_phpunit != 'true' }}
         run: |
           moodle-plugin-ci phpunit
           cd moodle
@@ -476,10 +479,10 @@ jobs:
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true' && inputs.disable_behat != true
+    if: needs.pre_job.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.behat_matrix) }}
     env:
       IGNORE_PATHS: tests/fixtures
     concurrency:
@@ -531,7 +534,6 @@ jobs:
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
       - name: Run behat
-        if: ${{ always() && inputs.disable_behat != 'true' }}
         run: moodle-plugin-ci behat --profile chrome
         shell: bash
   release:
