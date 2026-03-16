@@ -191,8 +191,12 @@ jobs:
       - name: Install PHPCompatibility
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
-          composer global require phpcompatibility/php-compatibility:"dev-develop as 10.0.0"
-          phpcs --config-set installed_paths "$(composer global config vendor-dir --absolute)/phpcompatibility/php-compatibility"
+          mkdir -p /tmp/phpcompat
+          printf '{"name":"tmp/phpcompat","minimum-stability":"dev","prefer-stable":true,"config":{"allow-plugins":{"dealerdirect/phpcodesniffer-composer-installer":true}}}' \
+            > /tmp/phpcompat/composer.json
+          composer --working-dir=/tmp/phpcompat require \
+            phpcompatibility/php-compatibility:"dev-develop as 10.0.0" \
+            dealerdirect/phpcodesniffer-composer-installer
       - name: Run PHP Compatibility check
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
@@ -200,7 +204,7 @@ jobs:
           if [ -n "${{ inputs.ignore_paths }}" ]; then
             ignore="$ignore,${{ inputs.ignore_paths }}"
           fi
-          phpcs --standard=PHPCompatibility --runtime-set testVersion ${{ inputs.min_php }} --ignore=$ignore ./plugin
+          /tmp/phpcompat/vendor/bin/phpcs --standard=PHPCompatibility --runtime-set testVersion ${{ inputs.min_php }} --ignore=$ignore ./plugin
         shell: bash
   phplint:
     if: needs.pre_job.outputs.should_skip != 'true'
