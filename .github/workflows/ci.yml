@@ -191,7 +191,7 @@ jobs:
       - name: Install PHPCompatibility
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
-          composer global require phpcompatibility/php-compatibility
+          composer global require phpcompatibility/php-compatibility:"dev-develop as 10.0.0"
           phpcs --config-set installed_paths "$(composer global config vendor-dir --absolute)/phpcompatibility/php-compatibility"
       - name: Run PHP Compatibility check
         if: ${{ always() && inputs.disable_phpcs != true }}
