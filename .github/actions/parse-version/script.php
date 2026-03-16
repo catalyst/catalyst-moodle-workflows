@@ -244,7 +244,7 @@ foreach ($finalMatrix as $entry) {
     }
 }
 if (!empty($phpVersions)) {
-    // Use version_compare to find the highest PHP version
+    // Use version_compare to find the highest and lowest PHP version
     usort($phpVersions, 'version_compare');
     $highestPhp = end($phpVersions);
     output('highest_php', $highestPhp);
@@ -275,4 +275,13 @@ if (!empty($phpVersions)) {
     output('latest_pgsql_ver', '');
     output('highest_php', '');
     output('highest_node', '');
+}
+
+// Find the lowest PHP version across all matrix entries (used for PHPCompatibility checks).
+$allPhpVersions = array_column($finalMatrix, 'php');
+if (!empty($allPhpVersions)) {
+    usort($allPhpVersions, 'version_compare');
+    output('lowest_php', reset($allPhpVersions));
+} else {
+    output('lowest_php', '');
 }

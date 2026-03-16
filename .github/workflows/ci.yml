@@ -103,6 +103,7 @@ jobs:
       latest_pgsql_ver: ${{ steps.parse-version.outputs.latest_pgsql_ver }}
       highest_php: ${{ steps.parse-version.outputs.highest_php }}
       highest_node: ${{ steps.parse-version.outputs.highest_node }}
+      lowest_php: ${{ steps.parse-version.outputs.lowest_php }}
       release_required: ${{ (
           contains(github.event_name, 'push') &&
           steps.check-version.outputs.any_changed == 'true' &&
@@ -204,7 +205,7 @@ jobs:
           if [ -n "${{ inputs.ignore_paths }}" ]; then
             ignore="$ignore,${{ inputs.ignore_paths }}"
           fi
-          /tmp/phpcompat/vendor/bin/phpcs --standard=PHPCompatibility --runtime-set testVersion ${{ inputs.min_php }} --ignore=$ignore ./plugin
+          /tmp/phpcompat/vendor/bin/phpcs --standard=PHPCompatibility --runtime-set testVersion ${{ needs.prepare_matrix.outputs.lowest_php || inputs.min_php }} --ignore=$ignore ./plugin
         shell: bash
   phplint:
     if: needs.pre_job.outputs.should_skip != 'true'
