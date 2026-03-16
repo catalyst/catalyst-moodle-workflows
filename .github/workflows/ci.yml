@@ -190,7 +190,9 @@ jobs:
         shell: bash
       - name: Install PHPCompatibility
         if: ${{ always() && inputs.disable_phpcs != true }}
-        run: composer global require phpcompatibility/php-compatibility dealerdirect/phpcodesniffer-composer-installer
+        run: |
+          composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require phpcompatibility/php-compatibility dealerdirect/phpcodesniffer-composer-installer
       - name: Run PHP Compatibility check
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
