@@ -189,10 +189,10 @@ jobs:
         run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }} ./plugin
         shell: bash
       - name: Install PHPCompatibility
-        if: ${{ inputs.disable_phpcs != true }}
+        if: ${{ always() && inputs.disable_phpcs != true }}
         run: composer global require phpcompatibility/php-compatibility dealerdirect/phpcodesniffer-composer-installer
       - name: Run PHP Compatibility check
-        if: ${{ inputs.disable_phpcs != true }}
+        if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
           ignore="vendor,node_modules"
           if [ -n "${{ inputs.ignore_paths }}" ]; then
