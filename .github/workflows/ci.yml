@@ -191,8 +191,8 @@ jobs:
       - name: Install PHPCompatibility
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
-          composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-          composer global require phpcompatibility/php-compatibility dealerdirect/phpcodesniffer-composer-installer
+          composer global require phpcompatibility/php-compatibility
+          phpcs --config-set installed_paths "$(composer global config vendor-dir --absolute)/phpcompatibility/php-compatibility"
       - name: Run PHP Compatibility check
         if: ${{ always() && inputs.disable_phpcs != true }}
         run: |
