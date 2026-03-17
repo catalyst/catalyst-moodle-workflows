@@ -17,12 +17,13 @@ runs:
       id: add-version
       env:
         PLUGIN: ${{ inputs.plugin_name }}
-        CURL: curl -s
         ENDPOINT: https://moodle.org/webservice/rest/server.php
         TOKEN: ${{ inputs.moodle_org_token }}
         FUNCTION: local_plugins_add_version
       run: |
-        RESPONSE=$(${CURL} ${ENDPOINT} --data-urlencode "wstoken=${TOKEN}" \
+        HEADERS_FILE=$(mktemp)
+        RESPONSE=$(curl -s -D "${HEADERS_FILE}" "${ENDPOINT}" \
+          --data-urlencode "wstoken=${TOKEN}" \
           --data-urlencode "wsfunction=${FUNCTION}" \
           --data-urlencode "moodlewsrestformat=json" \
           --data-urlencode "frankenstyle=${PLUGIN}" \
@@ -33,14 +34,26 @@ runs:
           --data-urlencode "vcsbranch=${GITHUB_REF_NAME}" \
           --data-urlencode "changelogurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" \
           --data-urlencode "altdownloadurl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/archive/refs/heads/${GITHUB_REF_NAME}.zip")
-        echo "::set-output name=response::${RESPONSE}"
+        {
+          echo "response=${RESPONSE}"
+          echo "response_headers<<EOF"
+          cat "${HEADERS_FILE}"
+          echo "EOF"
+        } >> "${GITHUB_OUTPUT}"
       shell: bash
 
     - name: Evaluate the response
       id: evaluate-response
       env:
         RESPONSE: ${{ steps.add-version.outputs.response }}
+        RESPONSE_HEADERS: ${{ steps.add-version.outputs.response_headers }}
       run: |
-        jq <<< ${RESPONSE}
-        jq --exit-status ".id" <<< ${RESPONSE} > /dev/null
+        jq <<< "${RESPONSE}"
+        if ! jq --exit-status ".id" <<< "${RESPONSE}" > /dev/null; then
+          echo "Response headers:"
+          echo "${RESPONSE_HEADERS}"
+          echo "Response body:"
+          echo "${RESPONSE}"
+          exit 1
+        fi
       shell: bash
