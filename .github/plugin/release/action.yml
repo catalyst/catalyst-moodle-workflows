@@ -47,13 +47,44 @@ runs:
       env:
         RESPONSE: ${{ steps.add-version.outputs.response }}
         RESPONSE_HEADERS: ${{ steps.add-version.outputs.response_headers }}
+        PLUGIN: ${{ inputs.plugin_name }}
+        ENDPOINT: https://moodle.org/webservice/rest/server.php
+        TOKEN: ${{ inputs.moodle_org_token }}
       run: |
-        jq <<< "${RESPONSE}"
-        if ! jq --exit-status ".id" <<< "${RESPONSE}" > /dev/null; then
+        jq <<< "${RESPONSE}" || true
+        if ! jq --exit-status ".id" <<< "${RESPONSE}" > /dev/null 2>&1; then
+          echo "Initial API call did not return a version ID."
           echo "Response headers:"
           echo "${RESPONSE_HEADERS}"
           echo "Response body:"
           echo "${RESPONSE}"
-          exit 1
+          echo ""
+          echo "The endpoint may have timed out but still processed the request."
+          echo "Polling moodle.org every 30s for up to 2 minutes to confirm..."
+          FOUND=false
+          for i in 1 2 3 4; do
+            echo "Check attempt ${i}/4..."
+            CHECK_RESPONSE=$(curl -s "${ENDPOINT}" \
+              --data-urlencode "wstoken=${TOKEN}" \
+              --data-urlencode "wsfunction=local_plugins_get_plugin_info" \
+              --data-urlencode "moodlewsrestformat=json" \
+              --data-urlencode "frankenstyle=${PLUGIN}")
+            echo "Plugin info response:"
+            jq <<< "${CHECK_RESPONSE}" || echo "${CHECK_RESPONSE}"
+            if jq --exit-status ".versions[]? | select(.vcsbranch == \"${GITHUB_REF_NAME}\")" \
+                <<< "${CHECK_RESPONSE}" > /dev/null 2>&1; then
+              echo "Success: version for branch ${GITHUB_REF_NAME} is now registered on moodle.org."
+              FOUND=true
+              break
+            fi
+            if [ "${i}" -lt 4 ]; then
+              echo "Not found yet, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+          if [ "${FOUND}" != "true" ]; then
+            echo "Version for branch ${GITHUB_REF_NAME} was not found after polling. Giving up."
+            exit 1
+          fi
         fi
       shell: bash
