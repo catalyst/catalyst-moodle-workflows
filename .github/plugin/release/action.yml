@@ -48,8 +48,6 @@ runs:
         RESPONSE: ${{ steps.add-version.outputs.response }}
         RESPONSE_HEADERS: ${{ steps.add-version.outputs.response_headers }}
         PLUGIN: ${{ inputs.plugin_name }}
-        ENDPOINT: https://moodle.org/webservice/rest/server.php
-        TOKEN: ${{ inputs.moodle_org_token }}
       run: |
         jq <<< "${RESPONSE}" || true
         if ! jq --exit-status ".id" <<< "${RESPONSE}" > /dev/null 2>&1; then
@@ -62,23 +60,28 @@ runs:
           echo "The endpoint may have timed out but still processed the request."
 
           PLUGIN_VERSION=$(grep -oP '\$plugin->version\s*=\s*\K[0-9]+' plugin/version.php)
-          echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (branch ${GITHUB_REF_NAME})..."
+
+          # Derive the Moodle branch from the lower bound of $plugin->supported in version.php.
+          # e.g. $plugin->supported = [500, 501]; → 500 → 5.0
+          SUPPORTED_LOWER=$(grep -oP '\$plugin->supported\s*=\s*\[\K[0-9]+' plugin/version.php)
+          MOODLE_BRANCH="${SUPPORTED_LOWER:0:1}.$((10#${SUPPORTED_LOWER:1}))"
+
+          echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (Moodle branch ${MOODLE_BRANCH})..."
           echo "Polling every 30s for up to 2 minutes..."
 
           FOUND=false
           for i in 1 2 3 4; do
             echo "Check attempt ${i}/4..."
-            CHECK_RESPONSE=$(curl -s "${ENDPOINT}" \
-              --data-urlencode "wstoken=${TOKEN}" \
-              --data-urlencode "wsfunction=local_plugins_get_plugin_versions" \
-              --data-urlencode "moodlewsrestformat=json" \
-              --data-urlencode "frankenstyle=${PLUGIN}")
+            CHECK_RESPONSE=$(curl -s -X POST "https://download.moodle.org/api/1.3/updates.php" \
+              --data-urlencode "format=json" \
+              --data-urlencode "branch=${MOODLE_BRANCH}" \
+              --data-urlencode "plugins=${PLUGIN}@0")
             echo "Plugin versions response:"
-            jq <<< "${CHECK_RESPONSE}" || echo "${CHECK_RESPONSE}"
+            jq ".updates.${PLUGIN}" <<< "${CHECK_RESPONSE}" || echo "${CHECK_RESPONSE}"
             if jq --exit-status \
-                "[.[] | select(.version == ${PLUGIN_VERSION} or .vcsbranch == \"${GITHUB_REF_NAME}\")] | length > 0" \
+                ".updates.${PLUGIN}[] | select(.version == \"${PLUGIN_VERSION}\")" \
                 <<< "${CHECK_RESPONSE}" > /dev/null 2>&1; then
-              echo "Success: version ${PLUGIN_VERSION} for branch ${GITHUB_REF_NAME} is registered on moodle.org."
+              echo "Success: version ${PLUGIN_VERSION} is registered on moodle.org."
               FOUND=true
               break
             fi
@@ -88,7 +91,7 @@ runs:
             fi
           done
           if [ "${FOUND}" != "true" ]; then
-            echo "Version ${PLUGIN_VERSION} for branch ${GITHUB_REF_NAME} was not found after polling. Giving up."
+            echo "Version ${PLUGIN_VERSION} was not found on moodle.org after polling. Giving up."
             exit 1
           fi
         fi
