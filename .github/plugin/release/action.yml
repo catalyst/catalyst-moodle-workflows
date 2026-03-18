@@ -60,20 +60,25 @@ runs:
           echo "${RESPONSE}"
           echo ""
           echo "The endpoint may have timed out but still processed the request."
-          echo "Polling moodle.org every 30s for up to 2 minutes to confirm..."
+
+          PLUGIN_VERSION=$(grep -oP '\$plugin->version\s*=\s*\K[0-9]+' plugin/version.php)
+          echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (branch ${GITHUB_REF_NAME})..."
+          echo "Polling every 30s for up to 2 minutes..."
+
           FOUND=false
           for i in 1 2 3 4; do
             echo "Check attempt ${i}/4..."
             CHECK_RESPONSE=$(curl -s "${ENDPOINT}" \
               --data-urlencode "wstoken=${TOKEN}" \
-              --data-urlencode "wsfunction=local_plugins_get_plugin_info" \
+              --data-urlencode "wsfunction=local_plugins_get_plugin_versions" \
               --data-urlencode "moodlewsrestformat=json" \
               --data-urlencode "frankenstyle=${PLUGIN}")
-            echo "Plugin info response:"
+            echo "Plugin versions response:"
             jq <<< "${CHECK_RESPONSE}" || echo "${CHECK_RESPONSE}"
-            if jq --exit-status ".versions[]? | select(.vcsbranch == \"${GITHUB_REF_NAME}\")" \
+            if jq --exit-status \
+                "[.[] | select(.version == ${PLUGIN_VERSION} or .vcsbranch == \"${GITHUB_REF_NAME}\")] | length > 0" \
                 <<< "${CHECK_RESPONSE}" > /dev/null 2>&1; then
-              echo "Success: version for branch ${GITHUB_REF_NAME} is now registered on moodle.org."
+              echo "Success: version ${PLUGIN_VERSION} for branch ${GITHUB_REF_NAME} is registered on moodle.org."
               FOUND=true
               break
             fi
@@ -83,7 +88,7 @@ runs:
             fi
           done
           if [ "${FOUND}" != "true" ]; then
-            echo "Version for branch ${GITHUB_REF_NAME} was not found after polling. Giving up."
+            echo "Version ${PLUGIN_VERSION} for branch ${GITHUB_REF_NAME} was not found after polling. Giving up."
             exit 1
           fi
         fi
