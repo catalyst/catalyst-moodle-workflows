@@ -434,7 +434,7 @@ jobs:
   phpunit:
     name: ${{ matrix.moodle-branch-short }} - phpunit - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true' && fromJson(needs.prepare_matrix.outputs.phpunit_matrix).include[0] != null
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare_matrix.outputs.phpunit_matrix) }}
@@ -498,7 +498,7 @@ jobs:
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix
-    if: needs.pre_job.outputs.should_skip != 'true'
+    if: needs.pre_job.outputs.should_skip != 'true' && fromJson(needs.prepare_matrix.outputs.behat_matrix).include[0] != null
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare_matrix.outputs.behat_matrix) }}
