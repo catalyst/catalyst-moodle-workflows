@@ -13,7 +13,51 @@ runs:
       uses: actions/checkout@v2
       with:
         path: plugin
+    - name: Check if version is already deployed
+      # Instead of checking whether version.php changed in the triggering commit,
+      # we compare the local version against what is already on moodle.org.
+      # This means a version bump that initially failed CI will still deploy once
+      # CI goes green on a later commit, without needing to re-touch version.php.
+      id: version-check
+      env:
+        PLUGIN: ${{ inputs.plugin_name }}
+        ENDPOINT: https://moodle.org/webservice/rest/server.php
+        TOKEN: ${{ inputs.moodle_org_token }}
+      run: |
+        LOCAL_VERSION=$(grep -oP '\$plugin->version\s*=\s*\K[0-9]+' plugin/version.php)
+        echo "Local version.php version: ${LOCAL_VERSION}"
+
+        RESPONSE=$(curl -s "${ENDPOINT}" \
+          --data-urlencode "wstoken=${TOKEN}" \
+          --data-urlencode "wsfunction=local_plugins_get_plugin_versions" \
+          --data-urlencode "moodlewsrestformat=json" \
+          --data-urlencode "frankenstyle=${PLUGIN}")
+
+        # If the response isn't a JSON array (e.g. network error or auth failure),
+        # fall through and attempt deployment so we don't silently skip a real release.
+        if ! echo "${RESPONSE}" | jq -e 'type == "array"' > /dev/null 2>&1; then
+          echo "Could not query current versions from moodle.org — will attempt deployment anyway."
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Find the highest version number already deployed on this branch.
+        REMOTE_VERSION=$(echo "${RESPONSE}" | jq -r \
+          "[.[] | select(.vcsbranch == \"${GITHUB_REF_NAME}\")] | map(.version) | max // 0")
+
+        echo "Latest deployed version on branch ${GITHUB_REF_NAME}: ${REMOTE_VERSION}"
+
+        if [ "${LOCAL_VERSION}" -gt "${REMOTE_VERSION}" ]; then
+          echo "Local version ${LOCAL_VERSION} is newer — deploying."
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "Version ${LOCAL_VERSION} is already deployed on branch ${GITHUB_REF_NAME}. Nothing to do."
+          echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
     - name: Release at Moodle.org by calling the service function
+      if: steps.version-check.outputs.should_deploy == 'true'
       id: add-version
       env:
         PLUGIN: ${{ inputs.plugin_name }}
@@ -43,6 +87,7 @@ runs:
       shell: bash
 
     - name: Evaluate the response
+      if: steps.version-check.outputs.should_deploy == 'true'
       id: evaluate-response
       env:
         RESPONSE: ${{ steps.add-version.outputs.response }}
