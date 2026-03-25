@@ -576,7 +576,18 @@ jobs:
     # - MOODLE_XX_STABLE
     # - MOODLE_XXX_STABLE
     # - main
-    if: needs.pre_job.outputs.should_skip != 'true' && needs.prepare_matrix.outputs.release_required == 'true'
+    #
+    # We use always() + explicit failure/cancelled checks instead of the
+    # default success() because success() returns false when any dependency
+    # is 'skipped'. When behat or phpunit are disabled their matrix is empty
+    # and those jobs are skipped, which would otherwise prevent release from
+    # running even though all real checks passed.
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.pre_job.outputs.should_skip != 'true' &&
+      needs.prepare_matrix.outputs.release_required == 'true'
     runs-on: 'ubuntu-latest'
     outputs:
       has-secrets: ${{ steps.check-secrets.outputs.has-secrets }}
