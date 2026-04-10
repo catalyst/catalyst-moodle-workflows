@@ -63,7 +63,7 @@ runs:
 
           PLUGIN_VERSION=$(grep -oP '\$plugin->version\s*=\s*\K[0-9]+' plugin/version.php)
           echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (branch ${GITHUB_REF_NAME})..."
-          echo "Polling every 30s for up to 2 minutes..."
+          echo "Polling every 30s ${MAX_ATTEMPTS} times..."
 
           FOUND=false
           MAX_ATTEMPTS=40
@@ -83,7 +83,7 @@ runs:
               FOUND=true
               break
             fi
-            if [ "${i}" -lt 4 ]; then
+            if [ "${i}" -lt "${MAX_ATTEMPTS}" ]; then
               echo "Not found yet, waiting 30 seconds..."
               sleep 30
             fi
