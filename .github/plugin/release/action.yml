@@ -62,7 +62,7 @@ runs:
           echo "The endpoint may have timed out but still processed the request."
 
           PLUGIN_VERSION=$(grep -oP '\$plugin->version\s*=\s*\K[0-9]+' plugin/version.php)
-          echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (branch ${GITHUB_REF_NAME})..."\
+          echo "Checking moodle.org for plugin version ${PLUGIN_VERSION} (branch ${GITHUB_REF_NAME})..."
 
           FOUND=false
           MAX_ATTEMPTS=40
