@@ -446,7 +446,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: "${{ matrix.database == 'pgsql' && matrix['pgseed-image'] != '' && matrix['pgseed-image'] || format('postgres:{0}', matrix['pgsql-ver']) }}"
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -510,7 +510,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: "${{ matrix.database == 'pgsql' && matrix['pgseed-image'] != '' && matrix['pgseed-image'] || format('postgres:{0}', matrix['pgsql-ver']) }}"
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
