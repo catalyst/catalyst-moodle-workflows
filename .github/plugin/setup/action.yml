@@ -107,6 +107,24 @@ runs:
         ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
+    - name: Apply MDL-88495 phpunit snapshot patch
+      if: ${{ always() }}
+      run: |
+        set -euo pipefail
+        cd "$GITHUB_WORKSPACE/moodletemp"
+        if grep -q -- "--upgrade" public/admin/tool/phpunit/cli/util.php; then
+          echo "MDL-88495 patch already present in this Moodle checkout."
+          exit 0
+        fi
+        curl -fsSL "https://github.com/moodle/moodle/compare/main...abhinavgandham:moodle:mdl88495-phpunitci.patch" -o /tmp/mdl88495-phpunitci.patch
+        if ! git am --3way --whitespace=nowarn /tmp/mdl88495-phpunitci.patch; then
+          git am --abort || true
+          echo "MDL-88495 patch did not apply cleanly on ${MOODLE_BRANCH}; continuing without patch."
+        fi
+      shell: bash
+      env:
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
+
     - name: Install Moodle and Plugin
       if: ${{ inputs.database != '' }}
       # Install moodle, but use our temporary directory to include any potential core patches that have been applied.

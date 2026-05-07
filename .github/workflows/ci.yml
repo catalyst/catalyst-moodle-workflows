@@ -490,6 +490,16 @@ jobs:
           database: ${{ matrix.database }}
       - name: Run phpunit
         run: |
+          if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
+            dataroot="$(php -r 'require "moodle/config.php"; echo $CFG->dataroot;' 2>/dev/null || true)"
+            if [ -n "$dataroot" ] && compgen -G "$dataroot/snapshot-*" > /dev/null; then
+              php moodle/public/admin/tool/phpunit/cli/util.php --drop
+              php moodle/public/admin/tool/phpunit/cli/util.php --restore
+            fi
+            php moodle/public/admin/tool/phpunit/cli/util.php --upgrade
+          else
+            echo "phpunit util upgrade mode unavailable on this Moodle branch; continuing with standard phpunit flow."
+          fi
           moodle-plugin-ci phpunit
           cd moodle
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
