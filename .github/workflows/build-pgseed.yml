@@ -1,0 +1,147 @@
+name: Build pgseed images
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs weekly (every Monday at 06:15 UTC) to refresh tags when Moodle minor versions roll forward.
+    - cron: '15 6 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/actions/matrix/matrix_includes.yml'
+      - 'docker/pgseed/**'
+      - '.github/workflows/build-pgseed.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Build pgseed matrix
+        id: set-matrix
+        run: |
+          import json
+          import os
+          import sys
+          import urllib.request
+          import yaml
+
+          with open('.github/actions/matrix/matrix_includes.yml', encoding='utf-8') as f:
+              data = yaml.safe_load(f)
+
+          MOODLE_UPDATES_QUERY_BRANCH = '3.8'
+          # branch=3.8 is accepted by this endpoint and still returns the full core updates list.
+          # version=0.0 requests the full available set rather than filtering to a real installed version.
+          updates_url = f'https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch={MOODLE_UPDATES_QUERY_BRANCH}'
+          try:
+              with urllib.request.urlopen(updates_url, timeout=30) as response:
+                  updates_data = json.loads(response.read().decode('utf-8'))
+          except Exception as exc:
+              print(f'Failed to fetch Moodle updates from {updates_url}: {exc}', file=sys.stderr)
+              print('Please retry the workflow or run it manually once the API is reachable.', file=sys.stderr)
+              raise
+
+          branch_to_minor = {
+              row['branch']: str(row['version'])
+              for row in updates_data.get('updates', {}).get('core', [])
+              if isinstance(row, dict) and row.get('branch') and row.get('version')
+          }
+
+          def to_minor_branch(moodle_branch):
+              if not moodle_branch.startswith('MOODLE_') or not moodle_branch.endswith('_STABLE'):
+                  return ''
+              digits = moodle_branch[len('MOODLE_'):-len('_STABLE')]
+              if not digits.isdigit() or len(digits) < 2:
+                  return ''
+              major = digits[0]
+              minor = digits[1:].lstrip('0') or '0'
+              return f"{major}.{minor}"
+
+          tuples = {}
+          for row in data.get('include', []):
+              if row.get('database') != 'pgsql':
+                  continue
+              moodle_branch = row.get('moodle-branch', '')
+              minor_branch = to_minor_branch(moodle_branch)
+              moodle_minor = branch_to_minor.get(minor_branch, '')
+              if not moodle_minor:
+                  # main does not have a stable 10-digit Moodle minor.
+                  continue
+
+              php = str(row.get('php', ''))
+              pgsql_ver = str(row.get('pgsql-ver', ''))
+              if not php or not pgsql_ver:
+                  continue
+
+              branch_slug = moodle_branch.replace('_', '-').lower()
+              image = 'ghcr.io/catalyst/catalyst-moodle-workflows-pgseed'
+              immutable_tag = f"{branch_slug}-php{php}-pg{pgsql_ver}-m{moodle_minor}"
+              mutable_tag = f"{branch_slug}-php{php}-pg{pgsql_ver}-latest"
+
+              key = (moodle_branch, php, pgsql_ver, moodle_minor)
+              tuples[key] = {
+                  'moodle-branch': moodle_branch,
+                  'php': php,
+                  'pgsql-ver': pgsql_ver,
+                  'moodle-minor': moodle_minor,
+                  'image': image,
+                  'immutable-tag': immutable_tag,
+                  'mutable-tag': mutable_tag,
+              }
+
+          matrix = sorted(tuples.values(), key=lambda x: (x['moodle-branch'], x['php'], x['pgsql-ver']))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"matrix={json.dumps({'include': matrix})}\n")
+        shell: python
+
+  build:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build pgseed image
+        run: |
+          docker build \
+            --build-arg MOODLE_BRANCH=${{ matrix['moodle-branch'] }} \
+            --build-arg MOODLE_MINOR=${{ matrix['moodle-minor'] }} \
+            --build-arg PHP_VERSION=${{ matrix.php }} \
+            --build-arg POSTGRES_VERSION=${{ matrix['pgsql-ver'] }} \
+            -t ${{ matrix.image }}:${{ matrix['immutable-tag'] }} \
+            -t ${{ matrix.image }}:${{ matrix['mutable-tag'] }} \
+            -f docker/pgseed/Dockerfile docker/pgseed
+
+      - name: Push pgseed image tags
+        run: |
+          docker push ${{ matrix.image }}:${{ matrix['immutable-tag'] }}
+          docker push ${{ matrix.image }}:${{ matrix['mutable-tag'] }}

@@ -142,6 +142,17 @@ When you call the reusable ci, it will:
 
 To view or modify the full matrix, please see it here: [.github/actions/matrix/matrix_includes.yml](.github/actions/matrix/matrix_includes.yml)
 
+### Seeded PostgreSQL images
+
+PostgreSQL-backed CI jobs can use pre-built pgseed images published to GHCR:
+
+`ghcr.io/catalyst/catalyst-moodle-workflows-pgseed:<moodle-branch>-php<php>-pg<pgsql>-m<moodle-minor>`
+
+- `<moodle-minor>` is the Moodle 10-digit minor version from the Moodle updates API (same source used by matrix parsing).
+- Images are built by `.github/workflows/build-pgseed.yml` from `docker/pgseed/`.
+- Rebuild these images by running the `Build pgseed images` workflow manually, or by changing `docker/pgseed/**`, `.github/actions/matrix/matrix_includes.yml`, or `.github/workflows/build-pgseed.yml`.
+- CI applies the temporary MDL-88495 patch to the Moodle checkout (until merged upstream), runs `php public/admin/tool/phpunit/cli/util.php --upgrade` before phpunit, and restores sitedata from the pgseed postgres service container archive at `/pgseed/moodledata.tar.gz` (docker-level snapshot, no `util.php --restore` usage).
+
 ## How does this automate releases?
 
 Whenever a change is made to version.php, the workflow is triggered on a release branch (e.g. __main__ / __MOODLE_XX_STABLE__), and tests pass, will it attempt to run the plugin/release action `.github/plugin/release/action.yml`. Doing so will automatically publish a release to the Moodle plugin directory at https://moodle.org/plugins.

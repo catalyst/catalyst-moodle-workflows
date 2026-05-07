@@ -446,7 +446,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: "${{ matrix.database == 'pgsql' && matrix['pgseed-image'] != '' && matrix['pgseed-image'] || format('postgres:{0}', matrix['pgsql-ver']) }}"
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -490,11 +490,29 @@ jobs:
           database: ${{ matrix.database }}
       - name: Run phpunit
         run: |
+          if [ "${MATRIX_DATABASE}" = "pgsql" ] && [ -n "${PGSEED_IMAGE}" ]; then
+            # Restore moodle sitedata from the pgseed postgres service container.
+            pgseed_container="$(docker ps --filter "name=postgres" --format '{{.ID}}' | head -n 1)"
+            if [ -n "$pgseed_container" ] && dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
+              if docker cp "$pgseed_container:/pgseed/moodledata.tar.gz" /tmp/moodledata.tar.gz 2>/dev/null; then
+                mkdir -p "$dataroot"
+                tar -xzf /tmp/moodledata.tar.gz -C "$dataroot" --strip-components=1
+              fi
+            fi
+          fi
+          if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
+            php moodle/public/admin/tool/phpunit/cli/util.php --upgrade
+          else
+            echo "PHPUnit util upgrade mode not available on this Moodle branch; continuing with standard PHPUnit flow."
+          fi
           moodle-plugin-ci phpunit
           cd moodle
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
+        env:
+          MATRIX_DATABASE: ${{ matrix.database }}
+          PGSEED_IMAGE: ${{ matrix['pgseed-image'] }}
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix
@@ -510,7 +528,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: "${{ matrix.database == 'pgsql' && matrix['pgseed-image'] != '' && matrix['pgseed-image'] || format('postgres:{0}', matrix['pgsql-ver']) }}"
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'

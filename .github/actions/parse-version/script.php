@@ -105,6 +105,59 @@ function container_image_name($moodle_branch, $php) {
     return "ghcr.io/catalyst/$repo:latest";
 }
 
+/**
+ * Resolve a MOODLE_XXX_STABLE branch to a Moodle minor (10 digit) version.
+ *
+ * @param string $moodleBranch
+ * @param array $updates
+ * @return string
+ */
+function moodle_minor_version($moodleBranch, array $updates): string {
+    if (!preg_match('/^MOODLE_(\d+)_STABLE$/', $moodleBranch, $matches)) {
+        return '';
+    }
+
+    $series = $matches[1];
+    $major = substr($series, 0, 1);
+    // Cast via int to strip leading zeros, then back to string for consistent branch key comparisons.
+    // This normalizes values used in the Moodle updates API map keys.
+    // Example: MOODLE_401_STABLE => 4.1, MOODLE_3011_STABLE => 3.11.
+    $minor = (string)((int)substr($series, 1));
+
+    $branch = $major . '.' . $minor;
+    foreach ($updates as $update) {
+        if (($update['branch'] ?? '') === $branch) {
+            return (string)($update['version'] ?? '');
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Build a deterministic pgseed image reference for a matrix entry.
+ *
+ * @param array $entry
+ * @return string
+ */
+function pgseed_image_name(array $entry): string {
+    if (($entry['database'] ?? '') !== 'pgsql') {
+        return '';
+    }
+
+    $minor = $entry['moodle-minor'] ?? '';
+    $pgsql = $entry['pgsql-ver'] ?? '';
+    $php = $entry['php'] ?? '';
+    $branch = $entry['moodle-branch'] ?? '';
+    if ($minor === '' || $pgsql === '' || $php === '' || $branch === '') {
+        return '';
+    }
+
+    $branchSlug = str_replace('_', '-', strtolower($branch));
+    $tag = "{$branchSlug}-php{$php}-pg{$pgsql}-m{$minor}";
+    return "ghcr.io/catalyst/catalyst-moodle-workflows-pgseed:{$tag}";
+}
+
 $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
 
     if (!isset($entry)) {
@@ -205,9 +258,11 @@ $preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin,
 
 
 // Add container image name and short branch name to each entry
-$finalMatrix = array_map(function($entry) {
+$finalMatrix = array_map(function($entry) use ($updates) {
     $entry['container'] = container_image_name($entry['moodle-branch'], $entry['php']);
     $entry['moodle-branch-short'] = preg_replace('/MOODLE_(.*)_STABLE/', '$1', $entry['moodle-branch']);
+    $entry['moodle-minor'] = moodle_minor_version($entry['moodle-branch'], $updates);
+    $entry['pgseed-image'] = pgseed_image_name($entry);
     return $entry;
 }, array_values($preparedMatrix));
 

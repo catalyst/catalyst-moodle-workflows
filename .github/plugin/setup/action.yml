@@ -107,6 +107,36 @@ runs:
         ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
+    - name: Apply MDL-88495 phpunit snapshot patch
+      if: ${{ always() }}
+      run: |
+        set -euo pipefail
+        cd "$GITHUB_WORKSPACE/moodletemp"
+        if grep -q -- "--upgrade" public/admin/tool/phpunit/cli/util.php; then
+          echo "MDL-88495 patch already present in this Moodle checkout."
+          exit 0
+        fi
+        # Temporary upstream patch for MDL-88495 phpunit snapshot/restore/upgrade support.
+        patch_url="https://github.com/moodle/moodle/commit/e812521f260b571f05ced5efd3bb443a455bbf78.patch"
+        patch_file="/tmp/mdl88495-phpunitci.patch"
+        # SHA256 for commit patch e812521f260b571f05ced5efd3bb443a455bbf78.
+        expected_sha256="4aee5364e688fb22170bc902887c623439f00cf45baad54e8dedfd6e66594290"
+        curl -fsSL "$patch_url" -o "$patch_file"
+        actual_sha256="$(sha256sum "$patch_file" | awk '{print $1}')"
+        if [ "$actual_sha256" != "$expected_sha256" ]; then
+          echo "Patch checksum mismatch for MDL-88495 patch."
+          echo "Expected: $expected_sha256"
+          echo "Actual:   $actual_sha256"
+          exit 1
+        fi
+        if ! git am --3way --whitespace=nowarn /tmp/mdl88495-phpunitci.patch; then
+          git am --abort || true
+          echo "MDL-88495 patch did not apply cleanly on ${MOODLE_BRANCH}; continuing without patch (PHPUnit snapshot/restore features unavailable)."
+        fi
+      shell: bash
+      env:
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
+
     - name: Install Moodle and Plugin
       if: ${{ inputs.database != '' }}
       # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
