@@ -119,7 +119,8 @@ function moodle_minor_version($moodleBranch, array $updates): string {
 
     $series = $matches[1];
     $major = substr($series, 0, 1);
-    // Collapse branch suffixes like 01/001 to 1 for API branch format (e.g. 4.1, 3.11, 5.0).
+    // Cast via int to strip leading zeros, then back to string for consistent branch key comparisons.
+    // Example: MOODLE_401_STABLE => 4.1, MOODLE_3011_STABLE => 3.11.
     $minor = (string)((int)substr($series, 1));
 
     $branch = $major . '.' . $minor;

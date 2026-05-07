@@ -130,7 +130,7 @@ runs:
         fi
         if ! git am --3way --whitespace=nowarn /tmp/mdl88495-phpunitci.patch; then
           git am --abort || true
-          echo "MDL-88495 patch did not apply cleanly on ${MOODLE_BRANCH}; continuing without patch."
+          echo "MDL-88495 patch did not apply cleanly on ${MOODLE_BRANCH}; continuing without patch (PHPUnit snapshot/restore features unavailable)."
         fi
       shell: bash
       env:

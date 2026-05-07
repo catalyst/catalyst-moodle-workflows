@@ -3,7 +3,7 @@ name: Build pgseed images
 on:
   workflow_dispatch:
   schedule:
-    # Runs weekly (Mondays at 06:15 UTC) to refresh tags when Moodle minor versions roll forward.
+    # Runs weekly (every Monday at 06:15 UTC) to refresh tags when Moodle minor versions roll forward.
     - cron: '15 6 * * 1'
   push:
     branches:
