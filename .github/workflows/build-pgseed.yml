@@ -46,6 +46,7 @@ jobs:
               data = yaml.safe_load(f)
 
           # branch=3.8 is accepted by this endpoint and still returns the full core updates list.
+          # version=0.0 requests the full available set rather than filtering to a real installed version.
           updates_url = 'https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8'
           try:
               with urllib.request.urlopen(updates_url, timeout=30) as response:

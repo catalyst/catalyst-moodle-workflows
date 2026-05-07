@@ -491,14 +491,17 @@ jobs:
       - name: Run phpunit
         run: |
           if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
-            dataroot="$(php -r 'require "moodle/config.php"; echo $CFG->dataroot;' 2>/dev/null || true)"
-            if [ -n "$dataroot" ] && compgen -G "$dataroot/snapshot-*" > /dev/null; then
-              php moodle/public/admin/tool/phpunit/cli/util.php --drop
-              php moodle/public/admin/tool/phpunit/cli/util.php --restore
+            if dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
+              if compgen -G "$dataroot/snapshot-*" > /dev/null; then
+                php moodle/public/admin/tool/phpunit/cli/util.php --drop
+                php moodle/public/admin/tool/phpunit/cli/util.php --restore
+              fi
+            else
+              echo "Unable to determine Moodle dataroot; skipping snapshot restore."
             fi
             php moodle/public/admin/tool/phpunit/cli/util.php --upgrade
           else
-            echo "phpunit util upgrade mode unavailable on this Moodle branch; continuing with standard phpunit flow."
+            echo "PHPUnit util upgrade mode not available on this Moodle branch; continuing with standard PHPUnit flow."
           fi
           moodle-plugin-ci phpunit
           cd moodle
