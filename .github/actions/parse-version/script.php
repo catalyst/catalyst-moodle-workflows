@@ -120,6 +120,7 @@ function moodle_minor_version($moodleBranch, array $updates): string {
     $series = $matches[1];
     $major = substr($series, 0, 1);
     // Cast via int to strip leading zeros, then back to string for consistent branch key comparisons.
+    // This normalizes values used in the Moodle updates API map keys.
     // Example: MOODLE_401_STABLE => 4.1, MOODLE_3011_STABLE => 3.11.
     $minor = (string)((int)substr($series, 1));
 

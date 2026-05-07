@@ -492,7 +492,7 @@ jobs:
         run: |
           if [ "${MATRIX_DATABASE}" = "pgsql" ] && [ -n "${PGSEED_IMAGE}" ]; then
             # Restore moodle sitedata from the pgseed postgres service container.
-            pgseed_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 ~ /catalyst-moodle-workflows-pgseed/ {print $1; exit}')"
+            pgseed_container="$(docker ps --filter "name=postgres" --format '{{.ID}}' | head -n 1)"
             if [ -n "$pgseed_container" ] && dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
               if docker cp "$pgseed_container:/pgseed/moodledata.tar.gz" /tmp/moodledata.tar.gz 2>/dev/null; then
                 mkdir -p "$dataroot"
