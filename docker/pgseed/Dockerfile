@@ -19,4 +19,8 @@ LABEL org.catalyst.php.version="${PHP_VERSION}"
 LABEL org.catalyst.pgsql.version="${POSTGRES_VERSION}"
 
 COPY seed.sh /docker-entrypoint-initdb.d/20-seed.sh
+COPY moodledata/ /opt/pgseed/moodledata/
 RUN chmod +x /docker-entrypoint-initdb.d/20-seed.sh
+RUN mkdir -p /pgseed \
+  && tar -C /opt/pgseed -czf /pgseed/moodledata.tar.gz moodledata \
+  && rm -rf /opt/pgseed

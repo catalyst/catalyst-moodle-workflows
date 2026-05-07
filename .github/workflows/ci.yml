@@ -490,17 +490,17 @@ jobs:
           database: ${{ matrix.database }}
       - name: Run phpunit
         run: |
-          if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
-            # Read dataroot from Moodle config to detect phpunit snapshot directories.
-            if dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
-              # snapshot-* directories are created by util.php --snapshot and include DB + sitedata state.
-              if compgen -G "$dataroot/snapshot-*" > /dev/null; then
-                php moodle/public/admin/tool/phpunit/cli/util.php --drop
-                php moodle/public/admin/tool/phpunit/cli/util.php --restore
+          if [ "${MATRIX_DATABASE}" = "pgsql" ] && [ -n "${PGSEED_IMAGE}" ]; then
+            # Restore moodle sitedata from the pgseed postgres service container.
+            pgseed_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 ~ /catalyst-moodle-workflows-pgseed/ {print $1; exit}')"
+            if [ -n "$pgseed_container" ] && dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
+              if docker cp "$pgseed_container:/pgseed/moodledata.tar.gz" /tmp/moodledata.tar.gz 2>/dev/null; then
+                mkdir -p "$dataroot"
+                tar -xzf /tmp/moodledata.tar.gz -C "$dataroot" --strip-components=1
               fi
-            else
-              echo "Unable to determine Moodle dataroot; skipping snapshot restore."
             fi
+          fi
+          if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
             php moodle/public/admin/tool/phpunit/cli/util.php --upgrade
           else
             echo "PHPUnit util upgrade mode not available on this Moodle branch; continuing with standard PHPUnit flow."
@@ -510,6 +510,9 @@ jobs:
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
+        env:
+          MATRIX_DATABASE: ${{ matrix.database }}
+          PGSEED_IMAGE: ${{ matrix['pgseed-image'] }}
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix

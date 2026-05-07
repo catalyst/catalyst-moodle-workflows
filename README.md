@@ -151,7 +151,7 @@ PostgreSQL-backed CI jobs can use pre-built pgseed images published to GHCR:
 - `<moodle-minor>` is the Moodle 10-digit minor version from the Moodle updates API (same source used by matrix parsing).
 - Images are built by `.github/workflows/build-pgseed.yml` from `docker/pgseed/`.
 - Rebuild these images by running the `Build pgseed images` workflow manually, or by changing `docker/pgseed/**`, `.github/actions/matrix/matrix_includes.yml`, or `.github/workflows/build-pgseed.yml`.
-- CI applies the temporary MDL-88495 patch to the Moodle checkout (until merged upstream), then runs `php public/admin/tool/phpunit/cli/util.php --upgrade` before phpunit. If a phpunit snapshot exists in dataroot, CI restores it (database and sitedata) with `util.php --restore`.
+- CI applies the temporary MDL-88495 patch to the Moodle checkout (until merged upstream), runs `php public/admin/tool/phpunit/cli/util.php --upgrade` before phpunit, and restores sitedata from the pgseed postgres service container archive at `/pgseed/moodledata.tar.gz` (docker-level snapshot, no `util.php --restore` usage).
 
 ## How does this automate releases?
 
