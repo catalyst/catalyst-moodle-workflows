@@ -119,10 +119,7 @@ function moodle_minor_version($moodleBranch, array $updates): string {
 
     $series = $matches[1];
     $major = substr($series, 0, 1);
-    $minor = ltrim(substr($series, 1), '0');
-    if ($minor === '') {
-        $minor = '0';
-    }
+    $minor = (string)((int)substr($series, 1));
 
     $branch = $major . '.' . $minor;
     foreach ($updates as $update) {
