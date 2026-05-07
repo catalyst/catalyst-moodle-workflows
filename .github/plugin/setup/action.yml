@@ -116,6 +116,7 @@ runs:
           echo "MDL-88495 patch already present in this Moodle checkout."
           exit 0
         fi
+        # Temporary upstream patch for MDL-88495 phpunit snapshot/restore/upgrade support.
         patch_url="https://github.com/moodle/moodle/commit/e812521f260b571f05ced5efd3bb443a455bbf78.patch"
         patch_file="/tmp/mdl88495-phpunitci.patch"
         expected_sha256="4aee5364e688fb22170bc902887c623439f00cf45baad54e8dedfd6e66594290"

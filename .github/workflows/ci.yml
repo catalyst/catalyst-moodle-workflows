@@ -491,7 +491,9 @@ jobs:
       - name: Run phpunit
         run: |
           if php moodle/public/admin/tool/phpunit/cli/util.php --help | grep -q -- '--upgrade'; then
+            # Read dataroot from Moodle config to detect phpunit snapshot directories.
             if dataroot="$(php -r 'require "moodle/config.php"; if (empty($CFG->dataroot)) { exit(1); } echo $CFG->dataroot;' 2>/dev/null)"; then
+              # snapshot-* directories are created by util.php --snapshot and include DB + sitedata state.
               if compgen -G "$dataroot/snapshot-*" > /dev/null; then
                 php moodle/public/admin/tool/phpunit/cli/util.php --drop
                 php moodle/public/admin/tool/phpunit/cli/util.php --restore
