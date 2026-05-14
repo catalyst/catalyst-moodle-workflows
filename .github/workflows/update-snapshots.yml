@@ -1,0 +1,195 @@
+name: Update PHPUnit Snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Extract unique (branch, db) matrix with highest PHP per pair
+        id: set-matrix
+        run: |
+          import yaml, json, os
+
+          with open('.github/actions/matrix/matrix_includes.yml') as f:
+              data = yaml.safe_load(f)
+
+          rows = data['include']
+
+          # For each (branch, db) pick the row with the highest PHP version.
+          # Compare as tuples of ints so 8.4 > 8.2 works correctly.
+          best = {}
+          for row in rows:
+              key = (row['moodle-branch'], row['database'])
+              existing = best.get(key)
+              if existing is None or \
+                 tuple(int(x) for x in str(row['php']).split('.')) > \
+                 tuple(int(x) for x in str(existing['php']).split('.')):
+                  best[key] = row
+
+          def snapshot_image(branch, db):
+              name = f"snapshot-{branch}-{db}".replace('_', '-').lower()
+              return f"ghcr.io/catalyst/{name}:latest"
+
+          matrix = []
+          for r in sorted(best.values(), key=lambda x: (x['moodle-branch'], x['database'])):
+              entry = {
+                  'moodle-branch':  r['moodle-branch'],
+                  'database':       r['database'],
+                  'php':            str(r['php']),
+                  'node':           str(r.get('node', 22)),
+                  'snapshot-image': snapshot_image(r['moodle-branch'], r['database']),
+              }
+              if r['database'] == 'pgsql':
+                  entry['pgsql-ver'] = str(r['pgsql-ver'])
+              else:
+                  entry['mariadb-ver'] = str(r['mariadb-ver'])
+              matrix.append(entry)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write('matrix=' + json.dumps(matrix) + '\n')
+        shell: python
+
+  build-snapshot:
+    name: ${{ matrix.moodle-branch }} - ${{ matrix.database }}
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
+    services:
+      postgres:
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Check out CI repo
+        uses: actions/checkout@v4
+        with:
+          path: ci
+
+      - name: Run setup (PHP, Node, moodle-plugin-ci, Moodle clone, shared patches)
+        # database is intentionally empty — we handle the Moodle install manually below
+        # so we can point moodle-plugin-ci at our minimal snapshot-plugin instead of
+        # this CI repo (which the composite action would check out as ./plugin/).
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ matrix.php }}
+          node: ${{ matrix.node }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+          database: ''
+
+      - name: Install Moodle with snapshot placeholder plugin
+        shell: bash
+        env:
+          DB: ${{ matrix.database }}
+          MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+        run: |
+          # The composite setup action checked out this CI repo into ./plugin/.
+          # Replace it with the minimal snapshot placeholder plugin so that
+          # moodle-plugin-ci has a valid Moodle plugin to install.
+          rm -rf ./plugin
+          cp -r ./ci/.github/snapshot-plugin ./plugin
+
+          # Workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306
+          # (disables git URL validation to allow folder-based repo cloning).
+          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' \
+            "$GITHUB_WORKSPACE/m-ci/src/Validate.php"
+
+          moodle-plugin-ci install -vvv \
+            --plugin ./plugin \
+            --db-host=127.0.0.1 \
+            --repo "$GITHUB_WORKSPACE/moodletemp"
+
+      - name: Initialise PHPUnit and take snapshot
+        shell: bash
+        run: |
+          # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
+          if [ -d moodle/public ]; then
+            UTIL="moodle/public/admin/tool/phpunit/cli/util.php"
+          else
+            UTIL="moodle/admin/tool/phpunit/cli/util.php"
+          fi
+
+          echo "Initialising PHPUnit test site..."
+          php "$UTIL" --install
+
+          echo "Taking snapshot..."
+          php "$UTIL" --snapshot
+
+          # Capture the snapshot directory for the Docker build step.
+          SNAPSHOT_DIR=$(ls -d "$MOODLE_PHPUNIT_DATAROOT"/snapshot-*/ | head -1)
+          if [ -z "$SNAPSHOT_DIR" ]; then
+            echo "ERROR: No snapshot directory found in $MOODLE_PHPUNIT_DATAROOT" >&2
+            exit 1
+          fi
+          echo "Snapshot created at: $SNAPSHOT_DIR"
+          echo "SNAPSHOT_DIR=$SNAPSHOT_DIR" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push snapshot Docker image
+        shell: bash
+        run: |
+          IMAGE="${{ matrix.snapshot-image }}"
+          BUILD_DIR=$(mktemp -d)
+
+          mkdir -p "$BUILD_DIR/snapshot"
+          cp -r "$SNAPSHOT_DIR/." "$BUILD_DIR/snapshot/"
+
+          # Write Dockerfile without any leading indentation.
+          printf 'FROM alpine:3\nCOPY snapshot/ /snapshot/\n' > "$BUILD_DIR/Dockerfile"
+
+          docker build -t "$IMAGE" "$BUILD_DIR"
+          docker push "$IMAGE"
+
+          echo "Pushed snapshot image: $IMAGE"
+          rm -rf "$BUILD_DIR"
