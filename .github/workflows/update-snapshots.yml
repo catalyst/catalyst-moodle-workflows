@@ -172,7 +172,8 @@ jobs:
           php "$UTIL" --install
 
           # Read the PHPUnit database name from Moodle's config.
-          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->phpunit_dbname;")
+          # Older Moodle (4.x) doesn't set phpunit_dbname; it reuses dbname with a prefix.
+          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo isset(\$CFG->phpunit_dbname) ? \$CFG->phpunit_dbname : \$CFG->dbname;")
           echo "Exporting PHPUnit database '$PHPUNIT_DBNAME'..."
 
           if [ "$DB" = "pgsql" ]; then
