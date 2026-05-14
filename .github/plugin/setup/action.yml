@@ -107,56 +107,6 @@ runs:
         ((test -f plugin/patch/${{ inputs.moodle_branch }}.diff && cd $GITHUB_WORKSPACE/moodletemp && git am --whitespace=nowarn < ../plugin/patch/${{ inputs.moodle_branch }}.diff) || echo No patch found;)
       shell: bash
 
-    - name: Install Shared Core Patches
-      if: ${{ always() }}
-      # Apply versioned patches from ci/.github/patches/ in alphabetical order.
-      # Patch filenames must be prefixed with MIN-MAX- version range, e.g. 500-999-name.patch.
-      # The range is matched against the numeric part of MOODLE_XXX_STABLE ('main' = 999).
-      # Any patch that matches and fails to apply causes the job to fail immediately.
-      run: |
-        MOODLE_BRANCH="${{ inputs.moodle_branch }}"
-        if [[ "$MOODLE_BRANCH" == "main" ]]; then
-          BRANCH_NUM=999
-        elif [[ "$MOODLE_BRANCH" =~ MOODLE_([0-9]+)_STABLE ]]; then
-          BRANCH_NUM=${BASH_REMATCH[1]}
-        else
-          echo "Could not parse branch number from '$MOODLE_BRANCH', skipping shared patches."
-          exit 0
-        fi
-
-        PATCHES_DIR="${GITHUB_WORKSPACE}/ci/.github/patches"
-        if [ ! -d "$PATCHES_DIR" ]; then
-          echo "No shared patches directory found at $PATCHES_DIR, skipping."
-          exit 0
-        fi
-
-        shopt -s nullglob
-        PATCH_FILES=( "$PATCHES_DIR"/*.patch )
-        if [ ${#PATCH_FILES[@]} -eq 0 ]; then
-          echo "No patch files found in $PATCHES_DIR"
-          exit 0
-        fi
-
-        for PATCHFILE in "${PATCH_FILES[@]}"; do
-          BASENAME=$(basename "$PATCHFILE")
-          if [[ "$BASENAME" =~ ^([0-9]+)-([0-9]+)- ]]; then
-            MIN_VER=${BASH_REMATCH[1]}
-            MAX_VER=${BASH_REMATCH[2]}
-            if (( BRANCH_NUM < MIN_VER || BRANCH_NUM > MAX_VER )); then
-              echo "Skipping $BASENAME (branch $BRANCH_NUM not in range $MIN_VER-$MAX_VER)"
-              continue
-            fi
-          else
-            echo "WARNING: patch $BASENAME has no version prefix (expected NNN-NNN-name.patch), skipping."
-            continue
-          fi
-
-          echo "Applying shared patch $BASENAME to branch $MOODLE_BRANCH..."
-          cd "$GITHUB_WORKSPACE/moodletemp"
-          git am --whitespace=nowarn < "$PATCHFILE"
-        done
-      shell: bash
-
     - name: Install Moodle and Plugin
       if: ${{ inputs.database != '' }}
       # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
