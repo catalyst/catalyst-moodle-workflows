@@ -148,8 +148,10 @@ jobs:
             --db-host=127.0.0.1 \
             --repo "$GITHUB_WORKSPACE/moodletemp"
 
-      - name: Initialise PHPUnit and take snapshot
+      - name: Initialise PHPUnit and export database
         shell: bash
+        env:
+          DB: ${{ matrix.database }}
         run: |
           # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
           if [ -d moodle/public ]; then
@@ -161,17 +163,17 @@ jobs:
           echo "Initialising PHPUnit test site..."
           php "$UTIL" --install
 
-          echo "Taking snapshot..."
-          php "$UTIL" --snapshot
+          # Read the PHPUnit database name from Moodle's config.
+          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->phpunit_dbname;")
+          echo "Exporting PHPUnit database '$PHPUNIT_DBNAME'..."
 
-          # Capture the snapshot directory for the Docker build step.
-          SNAPSHOT_DIR=$(ls -d "$MOODLE_PHPUNIT_DATAROOT"/snapshot-*/ | head -1)
-          if [ -z "$SNAPSHOT_DIR" ]; then
-            echo "ERROR: No snapshot directory found in $MOODLE_PHPUNIT_DATAROOT" >&2
-            exit 1
+          if [ "$DB" = "pgsql" ]; then
+            pg_dump -h 127.0.0.1 -U postgres "$PHPUNIT_DBNAME" > snapshot.sql
+          else
+            mysqldump -h 127.0.0.1 -u root "$PHPUNIT_DBNAME" > snapshot.sql
           fi
-          echo "Snapshot created at: $SNAPSHOT_DIR"
-          echo "SNAPSHOT_DIR=$SNAPSHOT_DIR" >> "$GITHUB_ENV"
+
+          echo "SNAPSHOT_SQL=$GITHUB_WORKSPACE/snapshot.sql" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -186,11 +188,8 @@ jobs:
           IMAGE="${{ matrix.snapshot-image }}"
           BUILD_DIR=$(mktemp -d)
 
-          mkdir -p "$BUILD_DIR/snapshot"
-          cp -r "$SNAPSHOT_DIR/." "$BUILD_DIR/snapshot/"
-
-          # Write Dockerfile without any leading indentation.
-          printf 'FROM alpine:3\nCOPY snapshot/ /snapshot/\n' > "$BUILD_DIR/Dockerfile"
+          cp "$SNAPSHOT_SQL" "$BUILD_DIR/snapshot.sql"
+          printf 'FROM alpine:3\nCOPY snapshot.sql /snapshot.sql\n' > "$BUILD_DIR/Dockerfile"
 
           docker build -t "$IMAGE" "$BUILD_DIR"
           docker push "$IMAGE"
