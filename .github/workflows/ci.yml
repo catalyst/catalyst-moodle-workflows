@@ -498,31 +498,34 @@ jobs:
           IMAGE="${IMAGE//_/-}"
           IMAGE="${IMAGE,,}:latest"
 
-          # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
-          if [ -d moodle/public ]; then
-            UTIL="moodle/public/admin/tool/phpunit/cli/util.php"
-            VERFILE="moodle/public/version.php"
-          else
-            UTIL="moodle/admin/tool/phpunit/cli/util.php"
-            VERFILE="moodle/version.php"
-          fi
-
-          # Read the Moodle version number — used as the snapshot directory name.
-          VERSION=$(php -r "require '$VERFILE'; echo \$version;")
-
           echo "Pulling snapshot image $IMAGE..."
           docker pull "$IMAGE"
 
-          # Extract snapshot files from the image into the PHPUnit dataroot.
+          # Extract SQL dump from the image.
           CID=$(docker create "$IMAGE")
-          mkdir -p "$MOODLE_PHPUNIT_DATAROOT/snapshot-$VERSION"
-          docker cp "$CID:/snapshot/." "$MOODLE_PHPUNIT_DATAROOT/snapshot-$VERSION/"
+          docker cp "$CID:/snapshot.sql" ./snapshot.sql
           docker rm "$CID"
 
-          echo "Restoring PHPUnit database from snapshot..."
-          php "$UTIL" --restore
+          # Read the PHPUnit database name from Moodle's config.
+          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->phpunit_dbname;")
+          echo "Restoring PHPUnit database '$PHPUNIT_DBNAME'..."
 
-          echo "Upgrading test site for current plugin version..."
+          if [ "$DB" = "pgsql" ]; then
+            createdb -h 127.0.0.1 -U postgres "$PHPUNIT_DBNAME"
+            psql -h 127.0.0.1 -U postgres -d "$PHPUNIT_DBNAME" < snapshot.sql
+          else
+            mysql -h 127.0.0.1 -u root -e "CREATE DATABASE \`$PHPUNIT_DBNAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            mysql -h 127.0.0.1 -u root "$PHPUNIT_DBNAME" < snapshot.sql
+          fi
+
+          # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
+          if [ -d moodle/public ]; then
+            UTIL="moodle/public/admin/tool/phpunit/cli/util.php"
+          else
+            UTIL="moodle/admin/tool/phpunit/cli/util.php"
+          fi
+
+          echo "Upgrading PHPUnit test site for current plugin version..."
           php "$UTIL" --upgrade
       - name: Run phpunit
         run: |
