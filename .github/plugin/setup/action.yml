@@ -17,6 +17,10 @@ inputs:
     description: 'Database type (e.g. pgsql, mariadb). Leave empty to skip installation.'
     required: false
     default: ''
+  apply-patches:
+    description: 'Whether to apply shared core patches from .github/patches/'
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -108,7 +112,7 @@ runs:
       shell: bash
 
     - name: Install Shared Core Patches
-      if: ${{ always() }}
+      if: ${{ always() && inputs.apply-patches == 'true' }}
       # Apply versioned patches from ci/.github/patches/ in alphabetical order.
       # Patch filenames must be prefixed with MIN-MAX- version range, e.g. 500-999-name.patch.
       # The range is matched against the numeric part of MOODLE_XXX_STABLE ('main' = 999).

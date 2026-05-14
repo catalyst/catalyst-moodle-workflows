@@ -126,6 +126,7 @@ jobs:
           node: ${{ matrix.node }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ''
+          apply-patches: 'false'
 
       - name: Install Moodle with snapshot placeholder plugin
         shell: bash
