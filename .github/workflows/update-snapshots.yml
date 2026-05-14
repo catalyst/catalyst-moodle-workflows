@@ -160,6 +160,9 @@ jobs:
             UTIL="moodle/admin/tool/phpunit/cli/util.php"
           fi
 
+          echo "Installing Moodle dev dependencies (PHPUnit)..."
+          composer install --working-dir=moodle
+
           echo "Initialising PHPUnit test site..."
           php "$UTIL" --install
 
