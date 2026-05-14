@@ -129,10 +129,14 @@ jobs:
           MOODLE_BRANCH: ${{ matrix.moodle-branch }}
         run: |
           # The composite setup action checked out this CI repo into ./plugin/.
-          # Replace it with the minimal snapshot placeholder plugin so that
-          # moodle-plugin-ci has a valid Moodle plugin to install.
+          # Replace it with a minimal inline Moodle plugin so that
+          # moodle-plugin-ci has a valid plugin to install against.
           rm -rf ./plugin
-          cp -r ./ci/.github/snapshot-plugin ./plugin
+          mkdir -p ./plugin/lang/en
+          printf '<?php\n$plugin->component = "local_snapshottest";\n$plugin->version = 2026010100;\n$plugin->requires = 2021051700;\n' \
+            > ./plugin/version.php
+          printf '<?php\n$string["pluginname"] = "Snapshot test";\n' \
+            > ./plugin/lang/en/local_snapshottest.php
 
           # Workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306
           # (disables git URL validation to allow folder-based repo cloning).
