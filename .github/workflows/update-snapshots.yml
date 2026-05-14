@@ -166,14 +166,26 @@ jobs:
             UTIL="moodle/admin/tool/phpunit/cli/util.php"
           fi
 
+          # moodle-plugin-ci never sets phpunit_dbname; without it PHPUnit shares the main
+          # DB (same name, phpu_ prefix) making clean export very difficult.
+          # Inject a separate DB name so --install creates an isolated phpunit database.
+          if ! grep -q 'phpunit_dbname' moodle/config.php; then
+            echo "\$CFG->phpunit_dbname = 'moodle_phpunit';" >> moodle/config.php
+          fi
+
+          # Pre-create the phpunit database (Moodle's --install may not create it).
+          if [ "$DB" = "pgsql" ]; then
+            createdb -h 127.0.0.1 -U postgres moodle_phpunit 2>/dev/null || true
+          else
+            mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS \`moodle_phpunit\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          fi
+
           echo "Installing Moodle dev dependencies (PHPUnit)..."
           composer install --working-dir=moodle
 
           echo "Initialising PHPUnit test site..."
           php "$UTIL" --install
 
-          # Read the PHPUnit database name from Moodle's config.
-          # Older Moodle (4.x) doesn't set phpunit_dbname; it reuses dbname with a prefix.
           PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo isset(\$CFG->phpunit_dbname) ? \$CFG->phpunit_dbname : \$CFG->dbname;")
           echo "Exporting PHPUnit database '$PHPUNIT_DBNAME'..."
 
