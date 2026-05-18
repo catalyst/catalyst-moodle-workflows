@@ -446,7 +446,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -458,7 +458,7 @@ jobs:
         ports:
           - 5432:5432
       mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
@@ -488,6 +488,50 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
+      - name: Restore PHPUnit snapshot
+        shell: bash
+        run: |
+          BRANCH="${{ matrix.moodle-branch }}"
+          DB="${{ matrix.database }}"
+          # Build image name: snapshot-{branch}-{db}, lowercased, underscores→hyphens.
+          IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
+          IMAGE="${IMAGE//_/-}"
+          IMAGE="${IMAGE,,}:latest"
+
+          echo "Pulling snapshot image $IMAGE..."
+          docker pull "$IMAGE"
+
+          # Extract SQL dump from the image.
+          CID=$(docker create "$IMAGE")
+          docker cp "$CID:/snapshot.sql" ./snapshot.sql
+          docker rm "$CID"
+
+          # moodle-plugin-ci never sets phpunit_dbname; inject the same value used by the
+          # snapshot builder so --upgrade targets the restored database.
+          if ! grep -q 'phpunit_dbname' moodle/config.php; then
+            echo "\$CFG->phpunit_dbname = 'moodle_phpunit';" >> moodle/config.php
+          fi
+
+          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo isset(\$CFG->phpunit_dbname) ? \$CFG->phpunit_dbname : \$CFG->dbname;")
+          echo "Restoring PHPUnit database '$PHPUNIT_DBNAME'..."
+
+          if [ "$DB" = "pgsql" ]; then
+            createdb -h 127.0.0.1 -U postgres "$PHPUNIT_DBNAME"
+            psql -h 127.0.0.1 -U postgres -d "$PHPUNIT_DBNAME" < snapshot.sql
+          else
+            mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS \`$PHPUNIT_DBNAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            mysql -h 127.0.0.1 -u root "$PHPUNIT_DBNAME" < snapshot.sql
+          fi
+
+          # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
+          if [ -d moodle/public ]; then
+            UTIL="moodle/public/admin/tool/phpunit/cli/util.php"
+          else
+            UTIL="moodle/admin/tool/phpunit/cli/util.php"
+          fi
+
+          echo "Upgrading PHPUnit test site for current plugin version..."
+          php "$UTIL" --upgrade
       - name: Run phpunit
         run: |
           moodle-plugin-ci phpunit
@@ -510,7 +554,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -522,7 +566,7 @@ jobs:
         ports:
           - 5432:5432
       mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
