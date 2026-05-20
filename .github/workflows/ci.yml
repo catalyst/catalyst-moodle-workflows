@@ -180,7 +180,15 @@ jobs:
       - name: Check out plugin code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+      - name: Fetch PR base and head commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          git fetch --no-tags --depth=1 origin "${HEAD_SHA}"
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
