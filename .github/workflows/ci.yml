@@ -47,6 +47,10 @@ on:
       disable_ci_validate:
         type: boolean
         default: false
+      disable_version_bump_check:
+        description: 'If true, this will skip enforcing version bump checks on pull requests'
+        type: boolean
+        default: false
       release_branches:
         description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
         type: string
@@ -169,7 +173,7 @@ jobs:
 
   version_bump_check:
     name: Enforce version bump on PRs
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && inputs.disable_version_bump_check != true
     runs-on: ubuntu-latest
     steps:
       - name: Check out plugin code
