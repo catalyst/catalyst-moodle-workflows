@@ -173,13 +173,19 @@ jobs:
 
   version_bump_check:
     name: Enforce version bump on PRs
-    if: github.event_name == 'pull_request' && inputs.disable_version_bump_check != true
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true' && github.event_name == 'pull_request' && inputs.disable_version_bump_check != true
     runs-on: ubuntu-latest
     steps:
       - name: Check out plugin code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
       - name: Validate plugin version bump
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -197,30 +203,45 @@ jobs:
               exit(1);
           }
 
-          function load_version_from_sha(string $sha): string {
+            function load_version_from_sha(string $sha, bool $allowFloat): string {
               $target = escapeshellarg($sha . ':version.php');
-              $content = shell_exec("git show {$target}");
+                $outputLines = [];
+                $exitCode = 0;
+                exec("git show {$target} 2>&1", $outputLines, $exitCode);
 
-              if ($content === null) {
-                  fwrite(STDERR, "Failed to read version.php for commit {$sha}.\n");
+                if ($exitCode !== 0) {
+                  $outputText = trim(implode("\n", $outputLines));
+                  fwrite(STDERR, "Failed to read version.php for commit {$sha} (git show exit code {$exitCode}).\n");
+                  if ($outputText !== '') {
+                    fwrite(STDERR, "git show output:\n{$outputText}\n");
+                  }
                   exit(1);
               }
 
-              if (!preg_match('/\\$plugin->version\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*;/', $content, $matches)) {
-                  fwrite(STDERR, "Could not find numeric \\$plugin->version in version.php at commit {$sha}.\n");
+                $content = implode("\n", $outputLines);
+
+                $pattern = $allowFloat
+                  ? '/\\$plugin->version\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*;/'
+                  : '/\\$plugin->version\\s*=\\s*([0-9]+)\\s*;/';
+
+                if (!preg_match($pattern, $content, $matches)) {
+                  $expectedType = $allowFloat ? 'numeric (int or float)' : 'integer';
+                  fwrite(STDERR, "Could not find {$expectedType} \\$plugin->version in version.php at commit {$sha}.\n");
                   exit(1);
               }
 
               return $matches[1];
           }
 
-          $baseVersion = load_version_from_sha($baseSha);
-          $headVersion = load_version_from_sha($headSha);
+              $baseVersion = load_version_from_sha($baseSha, true);
+              $headVersion = load_version_from_sha($headSha, false);
 
           echo "Base branch version: {$baseVersion}\n";
           echo "Feature branch version: {$headVersion}\n";
 
-          $bump = (float)$headVersion - (float)$baseVersion;
+          $baseVersionFloat = (float)$baseVersion;
+          $headVersionFloat = (float)$headVersion;
+          $bump = $headVersionFloat - $baseVersionFloat;
 
           if ($bump <= 0.0) {
               fwrite(STDERR, "Error: version.php must include a version bump in pull requests.\n");
@@ -228,7 +249,7 @@ jobs:
           }
 
           if ($bump > 1.0) {
-              fwrite(STDERR, "Error: version bump must be <= 1.0.\n");
+              fwrite(STDERR, "Error: version bump must be <= 1.\n");
               fwrite(STDERR, sprintf("Computed bump was %.10f.\n", $bump));
               exit(1);
           }
