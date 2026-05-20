@@ -167,6 +167,74 @@ jobs:
           filter: ${{ inputs.moodle_branches }}
           min_php: ${{ inputs.min_php }}
 
+  version_bump_check:
+    name: Enforce version bump on PRs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Validate plugin version bump
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          php <<'PHP'
+          <?php
+          $baseSha = getenv('BASE_SHA');
+          $headSha = getenv('HEAD_SHA');
+
+          if (!$baseSha || !$headSha) {
+              fwrite(STDERR, "Missing BASE_SHA or HEAD_SHA.\n");
+              exit(1);
+          }
+
+          function load_version_from_sha(string $sha): string {
+              $target = escapeshellarg($sha . ':version.php');
+              $content = shell_exec("git show {$target}");
+
+              if ($content === null) {
+                  fwrite(STDERR, "Failed to read version.php for commit {$sha}.\n");
+                  exit(1);
+              }
+
+              if (!preg_match('/\\$plugin->version\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*;/', $content, $matches)) {
+                  fwrite(STDERR, "Could not find numeric \\$plugin->version in version.php at commit {$sha}.\n");
+                  exit(1);
+              }
+
+              return $matches[1];
+          }
+
+          $baseVersion = load_version_from_sha($baseSha);
+          $headVersion = load_version_from_sha($headSha);
+
+          echo "Base branch version: {$baseVersion}\n";
+          echo "Feature branch version: {$headVersion}\n";
+
+          $bump = (float)$headVersion - (float)$baseVersion;
+
+          if ($bump <= 0.0) {
+              fwrite(STDERR, "Error: version.php must include a version bump in pull requests.\n");
+              exit(1);
+          }
+
+          if ($bump > 1.0) {
+              fwrite(STDERR, "Error: version bump must be <= 1.0.\n");
+              fwrite(STDERR, sprintf("Computed bump was %.10f.\n", $bump));
+              exit(1);
+          }
+
+          echo sprintf("Computed bump: %.10f\n", $bump);
+          PHP
+
+          echo "Version bump check passed."
+        shell: bash
+
   codechecker:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
