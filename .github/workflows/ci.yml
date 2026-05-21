@@ -179,7 +179,11 @@ jobs:
   version_bump_check:
     name: Enforce version bump on PRs
     needs: pre_job
-    if: needs.pre_job.outputs.should_skip != 'true' && github.event_name == 'pull_request' && inputs.disable_version_bump_check != true
+    if: |
+      needs.pre_job.outputs.should_skip != 'true' &&
+      github.event_name == 'pull_request' &&
+      inputs.disable_version_bump_check != true &&
+      startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')
     runs-on: ubuntu-latest
     steps:
       - name: Check out plugin code
