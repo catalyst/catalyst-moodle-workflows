@@ -79,9 +79,24 @@ jobs:
    runs-on: ubuntu-latest
    # Map a step output to a job output
    outputs:
-     should_skip: ${{ steps.decide.outputs.should_skip }}
+     should_skip: ${{ steps.finalize.outputs.should_skip }}
    steps:
+     - id: eligibility
+       name: Check branch/event eligibility
+       env:
+         EVENT_NAME: ${{ github.event_name }}
+         REF_PROTECTED: ${{ github.ref_protected }}
+       run: |
+         eligible=false
+
+         if [[ "${EVENT_NAME}" == "pull_request" || ("${EVENT_NAME}" == "push" && "${REF_PROTECTED}" == "true") ]]; then
+           eligible=true
+         fi
+
+         echo "eligible=${eligible}" >> "${GITHUB_OUTPUT}"
+
      - id: skip_check
+       if: steps.eligibility.outputs.eligible == 'true'
        # docs: https://github.com/fkirc/skip-duplicate-actions#skip-concurrent-workflow-runs
        uses: fkirc/skip-duplicate-actions@04a1aebece824b56e6ad6a401d015479cd1c50b3 # Oct 9, 2024 commit (current latest)
        with:
@@ -89,16 +104,16 @@ jobs:
          skip_after_successful_duplicate: false
          # Ensure should_skip is true only if 2 concurrent workflows are working on the same files (content)
          concurrent_skipping: ${{ inputs.concurrent_skipping }}
-     - id: decide
+
+     - id: finalize
        name: Decide whether CI should run
        env:
-         EVENT_NAME: ${{ github.event_name }}
-         REF_PROTECTED: ${{ github.ref_protected }}
+         ELIGIBLE: ${{ steps.eligibility.outputs.eligible }}
          DUPLICATE_SHOULD_SKIP: ${{ steps.skip_check.outputs.should_skip }}
        run: |
          should_skip=true
 
-         if [[ "${EVENT_NAME}" == "pull_request" || ("${EVENT_NAME}" == "push" && "${REF_PROTECTED}" == "true") ]]; then
+         if [[ "${ELIGIBLE}" == "true" ]]; then
            should_skip="${DUPLICATE_SHOULD_SKIP}"
          fi
 
