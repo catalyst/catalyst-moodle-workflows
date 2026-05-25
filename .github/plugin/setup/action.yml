@@ -137,6 +137,7 @@ runs:
 
         # Create a minimal config.php so tools that bootstrap Moodle (e.g. validate) can load
         # core_component without connecting to a database (ABORT_AFTER_CONFIG is set by moodle-plugin-ci).
+        mkdir -p /tmp/moodledata
         php -r "
           file_put_contents('$GITHUB_WORKSPACE/moodletemp/config.php',
             implode(PHP_EOL, [
