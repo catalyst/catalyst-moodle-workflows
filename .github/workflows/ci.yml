@@ -261,13 +261,12 @@ jobs:
           $bump = $headVersionFloat - $baseVersionFloat;
 
           if ($bump <= 0.0) {
-              fwrite(STDERR, "Error: version.php must include a version bump in pull requests.\n");
+              echo "::error file=version.php::version.php must include a version bump in pull requests.\n";
               exit(1);
           }
 
           if ($bump > 1.0) {
-              fwrite(STDERR, "Error: version bump must be <= 1.\n");
-              fwrite(STDERR, sprintf("Computed bump was %.10f.\n", $bump));
+              echo sprintf("::error file=version.php::version bump must be <= 1 (computed bump was %.10f).\n", $bump);
               exit(1);
           }
 
