@@ -251,24 +251,28 @@ runs:
 
         # Create a minimal config.php so tools that bootstrap Moodle (e.g. validate) can load
         # core_component without connecting to a database (ABORT_AFTER_CONFIG is set by moodle-plugin-ci).
-        cat > "$GITHUB_WORKSPACE/moodletemp/config.php" << 'EOF'
-<?php
-global $CFG;
-$CFG = new stdClass();
-$CFG->dbtype    = 'pgsql';
-$CFG->dblibrary = 'native';
-$CFG->dbhost    = 'fakehost';
-$CFG->dbname    = 'fakedb';
-$CFG->dbuser    = 'fakeuser';
-$CFG->dbpass    = '';
-$CFG->prefix    = 'mdl_';
-$CFG->dboptions = [];
-$CFG->wwwroot   = 'http://localhost';
-$CFG->dataroot  = '/tmp/moodledata';
-$CFG->admin     = 'admin';
-$CFG->directorypermissions = 0777;
-require_once(__DIR__ . '/lib/setup.php');
-EOF
+        php -r "
+          file_put_contents('$GITHUB_WORKSPACE/moodletemp/config.php',
+            implode(PHP_EOL, [
+              '<?php',
+              'global \$CFG;',
+              '\$CFG = new stdClass();',
+              '\$CFG->dbtype    = \'pgsql\';',
+              '\$CFG->dblibrary = \'native\';',
+              '\$CFG->dbhost    = \'fakehost\';',
+              '\$CFG->dbname    = \'fakedb\';',
+              '\$CFG->dbuser    = \'fakeuser\';',
+              '\$CFG->dbpass    = \'\';',
+              '\$CFG->prefix    = \'mdl_\';',
+              '\$CFG->dboptions = [];',
+              '\$CFG->wwwroot   = \'http://localhost\';',
+              '\$CFG->dataroot  = \'/tmp/moodledata\';',
+              '\$CFG->admin     = \'admin\';',
+              '\$CFG->directorypermissions = 0777;',
+              'require_once(__DIR__ . \'/lib/setup.php\');',
+            ])
+          );
+        "
         echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodletemp" >> "$GITHUB_ENV"
         echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
       shell: bash
