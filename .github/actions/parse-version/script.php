@@ -79,11 +79,11 @@ $responseHeaders = substr($rawResponse, 0, $headerSize);
 $updatesResponse = substr($rawResponse, $headerSize);
 
 if ($rawResponse === false || $curlError) {
-    fwrite(STDERR, "Error: Failed to fetch Moodle updates from $updatesUrl: $curlError\n");
+    echo "::error::Failed to fetch Moodle updates from $updatesUrl: $curlError\n";
     exit(1);
 }
 if ($httpCode !== 200) {
-    fwrite(STDERR, "Error: Unexpected HTTP $httpCode fetching Moodle updates from $updatesUrl\n");
+    echo "::error::Unexpected HTTP $httpCode fetching Moodle updates from $updatesUrl\n";
     fwrite(STDERR, "Response headers:\n$responseHeaders\n");
     exit(1);
 }
