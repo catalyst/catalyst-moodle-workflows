@@ -221,6 +221,43 @@ runs:
           echo "No phpunit snapshot archive present; can not restore phpunit DB snapshot."
           exit 1
         fi
+    - name: Install plugin into Moodle (no database)
+      if: ${{ inputs.database == '' }}
+      # For static analysis jobs that don't need a database, copy the plugin into the Moodle
+      # directory so that tools like mustache and grunt can find it within Moodle's directory tree.
+      run: |
+        COMPONENT=$(php -r "
+          define('MOODLE_INTERNAL', true);
+          define('MATURITY_ALPHA', 50);
+          define('MATURITY_BETA', 100);
+          define('MATURITY_RC', 150);
+          define('MATURITY_STABLE', 200);
+          \$plugin = new stdClass();
+          include 'plugin/version.php';
+          echo \$plugin->component;
+        ")
+        TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
+        NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
+        TYPE_DIR=$(php -r "
+          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodletemp/lib/components.json'), true);
+          \$type = '$TYPE';
+          if (!isset(\$components['plugintypes'][\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
+          echo \$components['plugintypes'][\$type];
+        ")
+        PLUGIN_PATH="$GITHUB_WORKSPACE/moodletemp/$TYPE_DIR/$NAME"
+        mkdir -p "$PLUGIN_PATH"
+        cp -r plugin/. "$PLUGIN_PATH/"
+        rm -rf "$PLUGIN_PATH/.git"
+        echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodletemp" >> "$GITHUB_ENV"
+        echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: Install Moodle and Plugin
+      if: ${{ inputs.database != '' }}
+      # Install moodle, but use our temporary directory to include any potential core patches that have been applied.
+      run: |
+        # Install moodle commands
+        echo "::group::Moodle install output"
 
         cd "$GITHUB_WORKSPACE/moodle"
 
@@ -236,3 +273,6 @@ runs:
         echo "Restore PHPUnit DB snapshot took $((END_TS - START_TS))s"
         echo "::endgroup::"
       shell: bash
+      env:
+        DB: ${{ inputs.database }}
+        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
