@@ -549,6 +549,15 @@ jobs:
           repository: catalyst/catalyst-moodle-workflows
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
+      - name: Tune PostgreSQL for CI speed
+        if: matrix.database == 'pgsql'
+        run: |
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET fsync = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET synchronous_commit = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET full_page_writes = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET checkpoint_completion_target = 0.9"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET max_wal_size = '1GB'"
+          psql -h 127.0.0.1 -U postgres -c "SELECT pg_reload_conf()"
       - name: Run plugin setup
         uses: ./ci/.github/plugin/setup
         with:
