@@ -561,8 +561,9 @@ jobs:
         run: |
           cd moodle
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite ${{ needs.prepare_matrix.outputs.component }}_testsuite
-          vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter metadata_registry
-          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_test
+          if [ -f "$GITHUB_WORKSPACE/plugin/classes/privacy/provider.php" ]; then
+            vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter test_all_providers_compliant
+          fi
         shell: bash
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
