@@ -138,20 +138,23 @@ runs:
       run: |
         COMPONENT=$(php -r "
           define('MOODLE_INTERNAL', true);
-          define('MATURITY_ALPHA', 50); define('MATURITY_BETA', 100);
-          define('MATURITY_RC', 150); define('MATURITY_STABLE', 200);
+          define('MATURITY_ALPHA', 50);
+          define('MATURITY_BETA', 100);
+          define('MATURITY_RC', 150);
+          define('MATURITY_STABLE', 200);
           \$plugin = new stdClass();
           include 'plugin/version.php';
           echo \$plugin->component;
         ")
-        PLUGIN_PATH=$(php -r "
-          define('CLI_SCRIPT', true);
-          define('ABORT_AFTER_CONFIG', true);
-          require 'moodle/config.php';
-          require_once \$CFG->dirroot . '/lib/classes/component.php';
-          list(\$type, \$name) = core_component::normalize_component('$COMPONENT');
-          echo core_component::get_plugin_directory(\$type, \$name);
+        TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
+        NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
+        TYPE_DIR=$(php -r "
+          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodle/lib/components.json'), true);
+          \$type = '$TYPE';
+          if (!isset(\$components['plugintypes'][\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
+          echo \$components['plugintypes'][\$type];
         ")
+        PLUGIN_PATH="$GITHUB_WORKSPACE/moodle/$TYPE_DIR/$NAME"
         mkdir -p "$PLUGIN_PATH"
         cp -r plugin/. "$PLUGIN_PATH/"
         rm -rf "$PLUGIN_PATH/.git"
