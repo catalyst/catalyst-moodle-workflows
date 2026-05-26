@@ -116,15 +116,25 @@ jobs:
         with:
           path: ci
 
-      - name: Run setup (PHP, Node, moodle-plugin-ci bootstrap)
-        # database is intentionally empty; this workflow performs clone/patch
-        # directly and builds snapshot artifacts from the installed tree.
-        uses: ./ci/.github/plugin/setup
+      - name: Install node ${{ matrix.node }}
+        uses: actions/setup-node@v4
         with:
-          php: ${{ matrix.php }}
-          node: ${{ matrix.node }}
-          moodle_branch: ${{ matrix.moodle-branch }}
-          database: ''
+          node-version: ${{ matrix.node }}
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
+        with:
+          php-version: ${{ matrix.php }}
+          ini-values: max_input_vars=5000
+          extensions: pgsql, mysqli, zip, gd, xmlrpc, soap
+          coverage: none
+
+      - name: Install moodle-plugin-ci
+        shell: bash
+        run: |
+          composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
+          echo "$(cd m-ci/bin; pwd)" >> "$GITHUB_PATH"
+          echo "$(cd m-ci/vendor/bin; pwd)" >> "$GITHUB_PATH"
 
       - name: Clone Moodle for snapshot
         shell: bash
