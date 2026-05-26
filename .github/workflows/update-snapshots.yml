@@ -238,13 +238,20 @@ jobs:
       - name: Export phpunit snapshot
         shell: bash
         run: |
+          # Detect util.php location (differs between classic and public/ layouts).
+          if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php"
+          elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php"
+          else
+            echo "Could not locate phpunit util.php"
+            exit 1
+          fi
+
           cd moodle
-
-          PHPUNIT_UTIL=$(php -r "define('CLI_SCRIPT', true); require 'config.php'; echo \$CFG->dirroot . '/admin/tool/phpunit/cli/util.php';")
-
           php "$PHPUNIT_UTIL" --snapshot=ci-phpunit
 
-          PHPUNIT_DATAROOT=$(php -r "define('CLI_SCRIPT', true); require 'config.php'; echo \$CFG->phpunit_dataroot;")
+          PHPUNIT_DATAROOT=$(php -r "define('ABORT_AFTER_CONFIG', true); require 'config.php'; echo \$CFG->phpunit_dataroot;")
           PHPUNIT_SNAPSHOT=$(find "$PHPUNIT_DATAROOT" -maxdepth 1 -type f -name '*-ci-phpunit-*.zip' | head -n1)
 
           if [ -z "$PHPUNIT_SNAPSHOT" ]; then

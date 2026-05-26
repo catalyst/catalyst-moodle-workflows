@@ -188,8 +188,8 @@ runs:
           mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
         fi
 
-        # Resolve phpunit_dataroot without a DB connection.
-        PHPUNIT_DATAROOT=$(php -r "define('ABORT_AFTER_CONFIG', true); require 'moodle/config.php'; echo \$CFG->phpunit_dataroot;")
+        # phpunit_dataroot is always $GITHUB_WORKSPACE/moodledata/phpunit per the config template.
+        PHPUNIT_DATAROOT="$GITHUB_WORKSPACE/moodledata/phpunit"
         mkdir -p "$PHPUNIT_DATAROOT"
         cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
 
