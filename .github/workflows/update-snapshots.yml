@@ -224,6 +224,7 @@ jobs:
             exit 1
           fi
 
+          sudo locale-gen en_AU.UTF-8
           mkdir -p "$GITHUB_WORKSPACE/moodledata/phpunit"
           php "$PHPUNIT_CLI/init.php"
 
