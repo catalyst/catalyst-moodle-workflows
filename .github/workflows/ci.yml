@@ -235,7 +235,7 @@ jobs:
     needs: prepare_matrix
     services:
       pgsql:
-        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        image: ${{ needs.prepare_matrix.outputs.latest_pgsql_ver && format('postgres:{0}', needs.prepare_matrix.outputs.latest_pgsql_ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -297,7 +297,7 @@ jobs:
     needs: prepare_matrix
     services:
       pgsql:
-        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        image: ${{ needs.prepare_matrix.outputs.latest_pgsql_ver && format('postgres:{0}', needs.prepare_matrix.outputs.latest_pgsql_ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -335,7 +335,7 @@ jobs:
     needs: prepare_matrix
     services:
       pgsql:
-        image: "postgres:${{ needs.prepare_matrix.outputs.latest_pgsql_ver }}"  
+        image: ${{ needs.prepare_matrix.outputs.latest_pgsql_ver && format('postgres:{0}', needs.prepare_matrix.outputs.latest_pgsql_ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -446,7 +446,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -458,7 +458,7 @@ jobs:
         ports:
           - 5432:5432
       mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
@@ -483,15 +483,32 @@ jobs:
         uses: ./ci/.github/plugin/setup
         with:
           php: ${{ matrix.php }}
-          node: ${{ matrix.node }}
           extra_php_extensions: ${{ inputs.extra_php_extensions }}
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
+          use_phpunit_snapshot: 'true'
+      - name: Install plugin into Moodle and upgrade phpunit site
+        shell: bash
+        run: |
+          TARGET_DIR=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; list(\$type, \$name) = core_component::normalize_component('${{ needs.prepare_matrix.outputs.component }}'); \$dir = core_component::get_plugin_directory(\$type, \$name); if (empty(\$dir)) { fwrite(STDERR, 'Could not resolve plugin path for component ${{ needs.prepare_matrix.outputs.component }}\n'); exit(1); } echo \$dir;")
+
+          if [ -z "$TARGET_DIR" ]; then
+            echo "Resolved plugin target directory is empty"
+            exit 1
+          fi
+
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
+          cp -a plugin/. "$TARGET_DIR/"
+
+          PHPUNIT_UTIL=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->dirroot . '/admin/tool/phpunit/cli/util.php';")
+
+          php "$PHPUNIT_UTIL" --upgrade
       - name: Run phpunit
         run: |
-          moodle-plugin-ci phpunit
           cd moodle
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite ${{ needs.prepare_matrix.outputs.component }}_testsuite
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --filter tool_dataprivacy_metadata_registry_testcase
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter provider_testcase
         shell: bash
@@ -510,7 +527,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     services:
       postgres:
-        image: "postgres:${{ matrix.pgsql-ver }}"
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -522,7 +539,7 @@ jobs:
         ports:
           - 5432:5432
       mariadb:
-        image: "mariadb:${{ matrix.mariadb-ver }}"
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"

@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+  push:
+    branches:
+      - main
+    paths:
+      - .github/actions/matrix/matrix_includes.yml
 
 permissions:
   packages: write
@@ -111,10 +116,9 @@ jobs:
         with:
           path: ci
 
-      - name: Run setup (PHP, Node, moodle-plugin-ci, Moodle clone, shared patches)
-        # database is intentionally empty — we handle the Moodle install manually below
-        # so we can point moodle-plugin-ci at our minimal snapshot-plugin instead of
-        # this CI repo (which the composite action would check out as ./plugin/).
+      - name: Run setup (PHP, Node, moodle-plugin-ci bootstrap)
+        # database is intentionally empty; this workflow performs clone/patch
+        # directly and builds snapshot artifacts from the installed tree.
         uses: ./ci/.github/plugin/setup
         with:
           php: ${{ matrix.php }}
@@ -122,58 +126,129 @@ jobs:
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ''
 
-      - name: Install Moodle with snapshot placeholder plugin
+      - name: Clone Moodle for snapshot
         shell: bash
+        run: |
+          git clone https://github.com/moodle/moodle.git --branch "$MOODLE_BRANCH" "$GITHUB_WORKSPACE/moodle"
         env:
-          DB: ${{ matrix.database }}
           MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+
+      - name: Apply shared core patches
+        shell: bash
         run: |
-          # The composite setup action checked out this CI repo into ./plugin/.
-          # Replace it with a minimal inline Moodle plugin so that
-          # moodle-plugin-ci has a valid plugin to install against.
-          rm -rf ./plugin
-          mkdir -p ./plugin/lang/en
-          printf '<?php\n$plugin->component = "local_snapshottest";\n$plugin->version = 2026010100;\n$plugin->requires = 2021051700;\n' \
-            > ./plugin/version.php
-          printf '<?php\n$string["pluginname"] = "Snapshot test";\n' \
-            > ./plugin/lang/en/local_snapshottest.php
+          git config --global user.email "test@test.com"
+          git config --global user.name "Test"
 
-          # Workaround for https://github.com/moodlehq/moodle-plugin-ci/issues/306
-          # (disables git URL validation to allow folder-based repo cloning).
-          sed -i '/public function gitUrl($url)/{n; s/{/& return $url;/}' \
-            "$GITHUB_WORKSPACE/m-ci/src/Validate.php"
+          MOODLE_BRANCH="${{ matrix.moodle-branch }}"
+          if [[ "$MOODLE_BRANCH" == "main" ]]; then
+            BRANCH_NUM=999
+          elif [[ "$MOODLE_BRANCH" =~ MOODLE_([0-9]+)_STABLE ]]; then
+            BRANCH_NUM=${BASH_REMATCH[1]}
+          else
+            echo "Could not parse branch number from '$MOODLE_BRANCH', skipping shared patches."
+            exit 0
+          fi
 
-          moodle-plugin-ci install -vvv \
-            --plugin ./plugin \
-            --db-host=127.0.0.1 \
-            --repo "$GITHUB_WORKSPACE/moodletemp"
+          PATCHES_DIR="${GITHUB_WORKSPACE}/ci/.github/patches"
+          if [ ! -d "$PATCHES_DIR" ]; then
+            echo "No shared patches directory found at $PATCHES_DIR, skipping."
+            exit 0
+          fi
 
-      - name: Initialise PHPUnit and export database
+          shopt -s nullglob
+          PATCH_FILES=( "$PATCHES_DIR"/*.patch )
+          if [ ${#PATCH_FILES[@]} -eq 0 ]; then
+            echo "No patch files found in $PATCHES_DIR"
+            exit 0
+          fi
+
+          for PATCHFILE in "${PATCH_FILES[@]}"; do
+            BASENAME=$(basename "$PATCHFILE")
+            if [[ "$BASENAME" =~ ^([0-9]+)-([0-9]+)- ]]; then
+              MIN_VER=${BASH_REMATCH[1]}
+              MAX_VER=${BASH_REMATCH[2]}
+              if (( BRANCH_NUM < MIN_VER || BRANCH_NUM > MAX_VER )); then
+                echo "Skipping $BASENAME (branch $BRANCH_NUM not in range $MIN_VER-$MAX_VER)"
+                continue
+              fi
+            else
+              echo "WARNING: patch $BASENAME has no version prefix (expected NNN-NNN-name.patch), skipping."
+              continue
+            fi
+
+            echo "Applying shared patch $BASENAME to branch $MOODLE_BRANCH..."
+            cd "$GITHUB_WORKSPACE/moodle"
+            git am --whitespace=nowarn < "$PATCHFILE"
+          done
+
+      - name: Install Moodle composer dependencies
+        shell: bash
+        run: |
+          composer --working-dir="moodle" install --no-interaction --prefer-dist
+
+      - name: Install PHPUnit DB for snapshot (no plugin install)
         shell: bash
         env:
           DB: ${{ matrix.database }}
         run: |
-          # Moodle 5.0+ uses a public/ webroot subdirectory; 4.x does not.
-          if [ -d moodle/public ]; then
-            UTIL="moodle/public/admin/tool/phpunit/cli/util.php"
-          else
-            UTIL="moodle/admin/tool/phpunit/cli/util.php"
-          fi
-
-          echo "Initialising PHPUnit test site..."
-          php "$UTIL" --install
-
-          # Read the PHPUnit database name from Moodle's config.
-          PHPUNIT_DBNAME=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->phpunit_dbname;")
-          echo "Exporting PHPUnit database '$PHPUNIT_DBNAME'..."
-
           if [ "$DB" = "pgsql" ]; then
-            pg_dump -h 127.0.0.1 -U postgres "$PHPUNIT_DBNAME" > snapshot.sql
+            DBTYPE="pgsql"
+            psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
+            psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
           else
-            mysqldump -h 127.0.0.1 -u root "$PHPUNIT_DBNAME" > snapshot.sql
+            DBTYPE="mariadb"
+            mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           fi
 
-          echo "SNAPSHOT_SQL=$GITHUB_WORKSPACE/snapshot.sql" >> "$GITHUB_ENV"
+          # Render config.php from template — only DBTYPE varies.
+          sed "s|{{DBTYPE}}|$DBTYPE|g" \
+            "$GITHUB_WORKSPACE/ci/.github/templates/moodle-config-template.php" > moodle/config.php
+
+          # Detect phpunit CLI location (differs between classic and public/ layouts).
+          if [ -f "moodle/public/admin/tool/phpunit/cli/init.php" ]; then
+            PHPUNIT_CLI="moodle/public/admin/tool/phpunit/cli"
+          elif [ -f "moodle/admin/tool/phpunit/cli/init.php" ]; then
+            PHPUNIT_CLI="moodle/admin/tool/phpunit/cli"
+          else
+            echo "Could not locate Moodle phpunit init script in moodle/ or moodle/public/."
+            exit 1
+          fi
+
+          mkdir -p "$GITHUB_WORKSPACE/moodledata/phpunit"
+          php "$PHPUNIT_CLI/init.php"
+
+      - name: Archive phpunit-ready Moodle tree
+        shell: bash
+        run: |
+          rm -rf moodle/.git
+          tar -C "$GITHUB_WORKSPACE" -czf "$GITHUB_WORKSPACE/moodle.tar.gz" moodle
+          echo "MOODLE_ARCHIVE=$GITHUB_WORKSPACE/moodle.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Export phpunit snapshot
+        shell: bash
+        run: |
+          cd moodle
+
+          PHPUNIT_UTIL=$(php -r "define('CLI_SCRIPT', true); require 'config.php'; echo \$CFG->dirroot . '/admin/tool/phpunit/cli/util.php';")
+
+          php "$PHPUNIT_UTIL" --snapshot=ci-phpunit
+
+          PHPUNIT_DATAROOT=$(php -r "define('CLI_SCRIPT', true); require 'config.php'; echo \$CFG->phpunit_dataroot;")
+          PHPUNIT_SNAPSHOT=$(find "$PHPUNIT_DATAROOT" -maxdepth 1 -type f -name '*-ci-phpunit-*.zip' | head -n1)
+
+          if [ -z "$PHPUNIT_SNAPSHOT" ]; then
+            echo "Could not find phpunit snapshot archive in $PHPUNIT_DATAROOT"
+            exit 1
+          fi
+
+          cp "$PHPUNIT_SNAPSHOT" "$GITHUB_WORKSPACE/phpunit-snapshot.zip"
+          echo "PHPUNIT_SNAPSHOT=$GITHUB_WORKSPACE/phpunit-snapshot.zip" >> "$GITHUB_ENV"
+
+      - name: Archive moodle-plugin-ci
+        shell: bash
+        run: |
+          tar -C "$GITHUB_WORKSPACE" -czf "$GITHUB_WORKSPACE/m-ci.tar.gz" m-ci
+          echo "MCI_ARCHIVE=$GITHUB_WORKSPACE/m-ci.tar.gz" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -188,8 +263,10 @@ jobs:
           IMAGE="${{ matrix.snapshot-image }}"
           BUILD_DIR=$(mktemp -d)
 
-          cp "$SNAPSHOT_SQL" "$BUILD_DIR/snapshot.sql"
-          printf 'FROM alpine:3\nCOPY snapshot.sql /snapshot.sql\n' > "$BUILD_DIR/Dockerfile"
+          cp "$PHPUNIT_SNAPSHOT" "$BUILD_DIR/phpunit-snapshot.zip"
+          cp "$MOODLE_ARCHIVE" "$BUILD_DIR/moodle.tar.gz"
+          cp "$MCI_ARCHIVE" "$BUILD_DIR/m-ci.tar.gz"
+          printf 'FROM alpine:3\nCOPY phpunit-snapshot.zip /phpunit-snapshot.zip\nCOPY moodle.tar.gz /moodle.tar.gz\nCOPY m-ci.tar.gz /m-ci.tar.gz\n' > "$BUILD_DIR/Dockerfile"
 
           docker build -t "$IMAGE" "$BUILD_DIR"
           docker push "$IMAGE"
