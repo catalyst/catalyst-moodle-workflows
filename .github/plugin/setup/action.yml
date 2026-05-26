@@ -205,6 +205,7 @@ runs:
 
         php "$PHPUNIT_UTIL" --restore=ci-phpunit
         php "$PHPUNIT_UTIL" --upgrade
+        php "$PHPUNIT_UTIL" --buildconfig
 
         END_TS=$(date +%s)
         echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
