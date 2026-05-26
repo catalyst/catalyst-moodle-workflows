@@ -557,7 +557,6 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
-          use_phpunit_snapshot: 'true'
       - name: Install plugin into Moodle and upgrade phpunit site
         shell: bash
         run: |

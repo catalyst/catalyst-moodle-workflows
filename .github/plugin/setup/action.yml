@@ -18,14 +18,6 @@ inputs:
     description: 'Database type (e.g. pgsql, mariadb). Leave empty to skip installation.'
     required: false
     default: ''
-  run_plugin_ci_install:
-    description: 'Whether to run moodle-plugin-ci install for database-enabled jobs.'
-    required: false
-    default: 'true'
-  use_phpunit_snapshot:
-    description: 'Whether to restore Moodle tree and phpunit DB snapshot artifacts.'
-    required: false
-    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -56,32 +48,25 @@ runs:
         extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
         coverage: none
 
-    - name: Configure Required Composer Version
-      id: install-composer
-      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
-      run: |
-        echo "::set-output name=COMPOSER_VERSION::--1"
+    - name: Pull snapshot Docker image and extract artifacts
       shell: bash
-
-    - name: Update Composer
-      if: ${{ inputs.moodle_branch == 'MOODLE_32_STABLE' || inputs.moodle_branch == 'MOODLE_33_STABLE' }}
       run: |
-        time composer self-update ${{ steps.install-composer1.outputs.COMPOSER_VERSION }}
-      shell: bash
+        BRANCH="${{ inputs.moodle_branch }}"
+        # Use provided database for image name; fall back to mariadb for jobs with no database.
+        DB="${{ inputs.database || 'mariadb' }}"
+        IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
+        IMAGE="${IMAGE//_/-}"
+        IMAGE="${IMAGE,,}:latest"
+        echo "Pulling snapshot image $IMAGE..."
+        docker pull "$IMAGE"
+        echo "SNAPSHOT_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
-    - name: Install moodle-plugin-ci
-      if: ${{ inputs.use_phpunit_snapshot != 'true' }}
-      run: |
-        START_TS=$(date +%s)
-        echo "::group::Install moodle-plugin-ci"
-
-        time composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
-        composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
-
-        END_TS=$(date +%s)
-        echo "Install moodle-plugin-ci took $((END_TS - START_TS))s"
-        echo "::endgroup::"
-      shell: bash
+        CID=$(docker create "$IMAGE")
+        docker cp "$CID:/m-ci.tar.gz" ./m-ci.tar.gz
+        docker cp "$CID:/moodle.tar.gz" ./moodle.tar.gz
+        docker rm "$CID"
+        tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/m-ci.tar.gz"
+        tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/moodle.tar.gz"
 
     - name: Add moodle-plugin-ci binaries to PATH
       run: |
@@ -124,66 +109,7 @@ runs:
         echo "::endgroup::"
       shell: bash
 
-    - name: Restore snapshot artifacts
-      if: ${{ inputs.database != '' && inputs.use_phpunit_snapshot == 'true' }}
-      run: |
-        START_TS=$(date +%s)
-        echo "::group::Restore snapshot artifacts"
-
-        BRANCH="${{ inputs.moodle_branch }}"
-        DB="${{ inputs.database }}"
-        # Build image name: snapshot-{branch}-{db}, lowercased, underscores->hyphens.
-        IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
-        IMAGE="${IMAGE//_/-}"
-        IMAGE="${IMAGE,,}:latest"
-        time git clone https://github.com/moodle/moodle.git --branch $MOODLE_BRANCH $GITHUB_WORKSPACE/moodletemp
-        BRANCH="${{ inputs.moodle_branch }}"
-        DB="${{ inputs.database }}"
-        # Build image name: snapshot-{branch}-{db}, lowercased, underscores->hyphens.
-        IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
-        IMAGE="${IMAGE//_/-}"
-        IMAGE="${IMAGE,,}:latest"
-
-        echo "Pulling snapshot image $IMAGE..."
-        docker pull "$IMAGE"
-
-        # Extract snapshot artifacts from the image.
-        CID=$(docker create "$IMAGE")
-        if docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip; then
-          echo "Found phpunit snapshot archive in image."
-        else
-          echo "No phpunit snapshot archive found in image."
-          docker rm "$CID"
-          exit 1
-        fi
-        if docker cp "$CID:/moodle.tar.gz" ./moodle.tar.gz; then
-          echo "Found Moodle snapshot tree archive in image."
-        else
-          echo "No Moodle snapshot tree archive found in image."
-          docker rm "$CID"
-          exit 1
-        fi
-        if docker cp "$CID:/m-ci.tar.gz" ./m-ci.tar.gz; then
-          echo "Found moodle-plugin-ci archive in image."
-        else
-          echo "No moodle-plugin-ci archive found in image."
-          docker rm "$CID"
-          exit 1
-        fi
-        docker rm "$CID"
-
-        tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/m-ci.tar.gz"
-
-        rm -rf "$GITHUB_WORKSPACE/moodle"
-        tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/moodle.tar.gz"
-
-        END_TS=$(date +%s)
-        echo "Restore snapshot artifacts took $((END_TS - START_TS))s"
-        echo "::endgroup::"
-      shell: bash
-
     - name: Apply plugin branch patch
-      if: ${{ inputs.database != '' && inputs.use_phpunit_snapshot == 'true' }}
       run: |
         START_TS=$(date +%s)
         echo "::group::Apply plugin branch patch"
@@ -200,33 +126,28 @@ runs:
         echo "::endgroup::"
       shell: bash
 
-    - name: Install Moodle and Plugin
-      if: ${{ inputs.database != '' && inputs.run_plugin_ci_install == 'true' && inputs.use_phpunit_snapshot != 'true' }}
+    - name: Restore snapshot artifacts
+      if: ${{ inputs.database != '' }}
       run: |
         START_TS=$(date +%s)
-        # Install moodle commands
-        echo "::group::Moodle install output"
+        echo "::group::Restore snapshot artifacts"
 
-        moodle-plugin-ci install -vvv --plugin ./plugin --db-host=127.0.0.1
-
-        END_TS=$(date +%s)
-        echo "Moodle install output took $((END_TS - START_TS))s"
-        echo "::endgroup::"
-      shell: bash
-      env:
-        DB: ${{ inputs.database }}
-        MOODLE_BRANCH: ${{ inputs.moodle_branch }}
-
-    - name: Restore PHPUnit DB snapshot
-      if: ${{ inputs.database != '' && inputs.use_phpunit_snapshot == 'true' }}
-      run: |
-        START_TS=$(date +%s)
-        echo "::group::Restore PHPUnit DB snapshot"
-
-        if [ ! -f "$GITHUB_WORKSPACE/phpunit-snapshot.zip" ]; then
-          echo "No phpunit snapshot archive present; can not restore phpunit DB snapshot."
+        # Extract phpunit snapshot from the image.
+        CID=$(docker create "$SNAPSHOT_IMAGE")
+        if docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip; then
+          echo "Found phpunit snapshot archive in image."
+        else
+          echo "No phpunit snapshot archive found in image."
+          docker rm "$CID"
           exit 1
         fi
+        docker rm "$CID"
+
+        END_TS=$(date +%s)
+        echo "Restore snapshot artifacts took $((END_TS - START_TS))s"
+        echo "::endgroup::"
+      shell: bash
+
     - name: Install plugin into Moodle (no database)
       if: ${{ inputs.database == '' }}
       # For static analysis jobs that don't need a database, copy the plugin into the Moodle
@@ -245,42 +166,17 @@ runs:
         TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
         NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
         TYPE_DIR=$(php -r "
-          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodletemp/lib/components.json'), true);
+          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodle/lib/components.json'), true);
           \$type = '$TYPE';
           if (!isset(\$components['plugintypes'][\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
           echo \$components['plugintypes'][\$type];
         ")
-        PLUGIN_PATH="$GITHUB_WORKSPACE/moodletemp/$TYPE_DIR/$NAME"
+        PLUGIN_PATH="$GITHUB_WORKSPACE/moodle/$TYPE_DIR/$NAME"
         mkdir -p "$PLUGIN_PATH"
         cp -r plugin/. "$PLUGIN_PATH/"
         rm -rf "$PLUGIN_PATH/.git"
 
-        # Create a minimal config.php so tools that bootstrap Moodle (e.g. validate) can load
-        # core_component without connecting to a database (ABORT_AFTER_CONFIG is set by moodle-plugin-ci).
-        mkdir -p /tmp/moodledata
-        php -r "
-          file_put_contents('$GITHUB_WORKSPACE/moodletemp/config.php',
-            implode(PHP_EOL, [
-              '<?php',
-              'global \$CFG;',
-              '\$CFG = new stdClass();',
-              '\$CFG->dbtype    = \'pgsql\';',
-              '\$CFG->dblibrary = \'native\';',
-              '\$CFG->dbhost    = \'fakehost\';',
-              '\$CFG->dbname    = \'fakedb\';',
-              '\$CFG->dbuser    = \'fakeuser\';',
-              '\$CFG->dbpass    = \'\';',
-              '\$CFG->prefix    = \'mdl_\';',
-              '\$CFG->dboptions = [];',
-              '\$CFG->wwwroot   = \'http://localhost\';',
-              '\$CFG->dataroot  = \'/tmp/moodledata\';',
-              '\$CFG->admin     = \'admin\';',
-              '\$CFG->directorypermissions = 0777;',
-              'require_once(__DIR__ . \'/lib/setup.php\');',
-            ])
-          );
-        "
-        echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodletemp" >> "$GITHUB_ENV"
+        echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodle" >> "$GITHUB_ENV"
         echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
       shell: bash
 
@@ -291,18 +187,8 @@ runs:
         # Install moodle commands
         echo "::group::Moodle install output"
 
-        cd "$GITHUB_WORKSPACE/moodle"
+        time moodle-plugin-ci install -vvv --plugin ./plugin --db-host=127.0.0.1 --repo $GITHUB_WORKSPACE/moodle
 
-        time moodle-plugin-ci install -vvv --plugin ./plugin --db-host=127.0.0.1 --repo $GITHUB_WORKSPACE/moodletemp
-
-        PHPUNIT_DATAROOT=$(php -r "define('CLI_SCRIPT', true); require 'config.php'; echo \$CFG->phpunit_dataroot;")
-        mkdir -p "$PHPUNIT_DATAROOT"
-
-        cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
-        php "$PHPUNIT_UTIL" --restore=ci-phpunit
-
-        END_TS=$(date +%s)
-        echo "Restore PHPUnit DB snapshot took $((END_TS - START_TS))s"
         echo "::endgroup::"
       shell: bash
       env:
