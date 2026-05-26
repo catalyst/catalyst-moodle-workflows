@@ -133,6 +133,32 @@ runs:
         echo "::endgroup::"
       shell: bash
 
+    - name: Install plugin into Moodle
+      shell: bash
+      run: |
+        COMPONENT=$(php -r "
+          define('MOODLE_INTERNAL', true);
+          define('MATURITY_ALPHA', 50); define('MATURITY_BETA', 100);
+          define('MATURITY_RC', 150); define('MATURITY_STABLE', 200);
+          \$plugin = new stdClass();
+          include 'plugin/version.php';
+          echo \$plugin->component;
+        ")
+        PLUGIN_PATH=$(php -r "
+          define('CLI_SCRIPT', true);
+          define('ABORT_AFTER_CONFIG', true);
+          require 'moodle/config.php';
+          require_once \$CFG->dirroot . '/lib/classes/component.php';
+          list(\$type, \$name) = core_component::normalize_component('$COMPONENT');
+          echo core_component::get_plugin_directory(\$type, \$name);
+        ")
+        mkdir -p "$PLUGIN_PATH"
+        cp -r plugin/. "$PLUGIN_PATH/"
+        rm -rf "$PLUGIN_PATH/.git"
+
+        echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodle" >> "$GITHUB_ENV"
+        echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
+
     - name: Create database and restore PHPUnit snapshot
       if: ${{ inputs.database != '' }}
       shell: bash
@@ -171,39 +197,10 @@ runs:
         fi
 
         php "$PHPUNIT_UTIL" --restore=ci-phpunit
+        php "$PHPUNIT_UTIL" --upgrade
 
         END_TS=$(date +%s)
         echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
         echo "::endgroup::"
 
-    - name: Install plugin into Moodle (no database)
-      if: ${{ inputs.database == '' }}
-      # For static analysis jobs that don't need a database, copy the plugin into the Moodle
-      # directory so that tools like mustache and grunt can find it within Moodle's directory tree.
-      run: |
-        COMPONENT=$(php -r "
-          define('MOODLE_INTERNAL', true);
-          define('MATURITY_ALPHA', 50);
-          define('MATURITY_BETA', 100);
-          define('MATURITY_RC', 150);
-          define('MATURITY_STABLE', 200);
-          \$plugin = new stdClass();
-          include 'plugin/version.php';
-          echo \$plugin->component;
-        ")
-        TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
-        NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
-        TYPE_DIR=$(php -r "
-          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodle/lib/components.json'), true);
-          \$type = '$TYPE';
-          if (!isset(\$components['plugintypes'][\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
-          echo \$components['plugintypes'][\$type];
-        ")
-        PLUGIN_PATH="$GITHUB_WORKSPACE/moodle/$TYPE_DIR/$NAME"
-        mkdir -p "$PLUGIN_PATH"
-        cp -r plugin/. "$PLUGIN_PATH/"
-        rm -rf "$PLUGIN_PATH/.git"
 
-        echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodle" >> "$GITHUB_ENV"
-        echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
-      shell: bash

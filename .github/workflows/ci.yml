@@ -557,23 +557,6 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
-      - name: Install plugin into Moodle and upgrade phpunit site
-        shell: bash
-        run: |
-          TARGET_DIR=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; list(\$type, \$name) = core_component::normalize_component('${{ needs.prepare_matrix.outputs.component }}'); \$dir = core_component::get_plugin_directory(\$type, \$name); if (empty(\$dir)) { fwrite(STDERR, 'Could not resolve plugin path for component ${{ needs.prepare_matrix.outputs.component }}\n'); exit(1); } echo \$dir;")
-
-          if [ -z "$TARGET_DIR" ]; then
-            echo "Resolved plugin target directory is empty"
-            exit 1
-          fi
-
-          rm -rf "$TARGET_DIR"
-          mkdir -p "$TARGET_DIR"
-          cp -a plugin/. "$TARGET_DIR/"
-
-          PHPUNIT_UTIL=$(php -r "define('CLI_SCRIPT', true); require 'moodle/config.php'; echo \$CFG->dirroot . '/admin/tool/phpunit/cli/util.php';")
-
-          php "$PHPUNIT_UTIL" --upgrade
       - name: Run phpunit
         run: |
           cd moodle
