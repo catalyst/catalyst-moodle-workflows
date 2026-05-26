@@ -57,10 +57,17 @@ runs:
         IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
         IMAGE="${IMAGE//_/-}"
         IMAGE="${IMAGE,,}:latest"
-        echo "Pulling snapshot image $IMAGE..."
-        docker pull "$IMAGE"
         echo "SNAPSHOT_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
+        START_TS=$(date +%s)
+        echo "::group::Pull snapshot Docker image"
+        docker pull "$IMAGE"
+        echo "::endgroup::"
+        END_TS=$(date +%s)
+        echo "Pull snapshot Docker image took $((END_TS - START_TS))s"
+
+        START_TS=$(date +%s)
+        echo "::group::Extract artifacts"
         CID=$(docker create "$IMAGE")
         docker cp "$CID:/m-ci.tar.gz" ./m-ci.tar.gz
         docker cp "$CID:/moodle.tar.gz" ./moodle.tar.gz
@@ -68,6 +75,9 @@ runs:
         tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/m-ci.tar.gz"
         tar -C "$GITHUB_WORKSPACE" -xzf "$GITHUB_WORKSPACE/moodle.tar.gz"
         mkdir -p "$GITHUB_WORKSPACE/moodledata"
+        echo "::endgroup::"
+        END_TS=$(date +%s)
+        echo "Extract artifacts took $((END_TS - START_TS))s"
 
     - name: Add moodle-plugin-ci binaries to PATH
       run: |
