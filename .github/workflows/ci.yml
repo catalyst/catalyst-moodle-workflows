@@ -606,10 +606,14 @@ jobs:
           echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
         shell: bash
       - name: Run phpunit
+        working-directory: moodle
         run: |
-          cd moodle
+          echo "::group::Plugin unit tests"
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite ${{ needs.prepare_matrix.outputs.component }}_testsuite
+          echo "::endgroup::"
+          echo "::group::Privacy unit tests"
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter test_all_providers_compliant
+          echo "::endgroup::"
         shell: bash
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
