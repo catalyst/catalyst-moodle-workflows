@@ -1,13 +1,14 @@
-From 806bbf2aa9140dad2a060bd098d991aa989378eb Mon Sep 17 00:00:00 2001
+From a370c7a7f21e815fa43b492cfc802c72413534f8 Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
 Date: Fri, 22 May 2026 15:05:47 +1000
 Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
 
 ---
  admin/tool/phpunit/cli/util.php |  28 ++-
+ lib/phpunit/bootstrap.php       |   2 +-
  lib/phpunit/classes/util.php    | 371 +++++++++++++++++++++++++++++++-
  lib/testing/classes/util.php    |   7 +
- 3 files changed, 402 insertions(+), 4 deletions(-)
+ 4 files changed, 403 insertions(+), 5 deletions(-)
 
 diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
 index 1d176900fdf..39cd67fb20f 100644
@@ -67,6 +68,19 @@ index 1d176900fdf..39cd67fb20f 100644
 +    phpunit_util::restore_site(is_string($restore) ? $restore : '');
 +    exit(0);
  }
+diff --git a/lib/phpunit/bootstrap.php b/lib/phpunit/bootstrap.php
+index e8be0752c2d..d1306ff2c54 100644
+--- a/lib/phpunit/bootstrap.php
++++ b/lib/phpunit/bootstrap.php
+@@ -135,7 +135,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
+ if (!file_exists("$CFG->phpunit_dataroot/phpunittestdir.txt")) {
+     if ($dh = opendir($CFG->phpunit_dataroot)) {
+         while (($file = readdir($dh)) !== false) {
+-            if ($file === 'phpunit' or $file === '.' or $file === '..' or $file === '.DS_Store') {
++            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store' || str_ends_with($file, '.zip')) {
+                 continue;
+             }
+             phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, '$CFG->phpunit_dataroot directory is not empty, can not run tests! Is it used for anything else?');
 diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
 index 9d5acc4bae0..298fa0dffde 100644
 --- a/lib/phpunit/classes/util.php

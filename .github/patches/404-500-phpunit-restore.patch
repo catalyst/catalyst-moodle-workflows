@@ -1,13 +1,14 @@
-From e3e643ce27ade04e96514e1ccbc1792bd212b4b7 Mon Sep 17 00:00:00 2001
+From 40bed02dd1204c7ef275fd6a6c672d96a73758cb Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
 Date: Fri, 22 May 2026 15:05:47 +1000
 Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
 
 ---
  admin/tool/phpunit/cli/util.php |  28 ++-
+ lib/phpunit/bootstrap.php       |   2 +-
  lib/phpunit/classes/util.php    | 371 +++++++++++++++++++++++++++++++-
  lib/testing/classes/util.php    |   7 +
- 3 files changed, 402 insertions(+), 4 deletions(-)
+ 4 files changed, 403 insertions(+), 5 deletions(-)
 
 diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
 index 3cc928a9e5a..988e45f150d 100644
@@ -67,6 +68,19 @@ index 3cc928a9e5a..988e45f150d 100644
 +    phpunit_util::restore_site(is_string($restore) ? $restore : '');
 +    exit(0);
  }
+diff --git a/lib/phpunit/bootstrap.php b/lib/phpunit/bootstrap.php
+index 9aedea38c3e..19ebfdec034 100644
+--- a/lib/phpunit/bootstrap.php
++++ b/lib/phpunit/bootstrap.php
+@@ -151,7 +151,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
+ if (!file_exists("$CFG->phpunit_dataroot/phpunittestdir.txt")) {
+     if ($dh = opendir($CFG->phpunit_dataroot)) {
+         while (($file = readdir($dh)) !== false) {
+-            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store') {
++            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store' || str_ends_with($file, '.zip')) {
+                 continue;
+             }
+             phpunit_bootstrap_error(
 diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
 index 86b52503aa3..9063b7e5717 100644
 --- a/lib/phpunit/classes/util.php
