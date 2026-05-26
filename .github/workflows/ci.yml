@@ -568,7 +568,6 @@ jobs:
           database: ${{ matrix.database }}
       - name: Create database and restore PHPUnit snapshot
         run: |
-          echo "::group::Create database and restore PHPUnit snapshot"
           START_TS=$(date +%s)
 
           # Extract phpunit snapshot zip from the image — fail if missing.
@@ -603,7 +602,6 @@ jobs:
           php "$PHPUNIT_UTIL" --upgrade
           php "$PHPUNIT_UTIL" --buildconfig
 
-          echo "::endgroup::"
           END_TS=$(date +%s)
           echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
         shell: bash
