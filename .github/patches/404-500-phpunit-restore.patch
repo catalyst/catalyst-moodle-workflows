@@ -1,18 +1,16 @@
-From d3f3855897edf3c5411ff3633c8e860884a1894d Mon Sep 17 00:00:00 2001
+From e3e643ce27ade04e96514e1ccbc1792bd212b4b7 Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
-Date: Wed, 13 May 2026 15:33:48 +1000
-Subject: [PATCH] MDL-88495 unit tests: Implmented test site upgrade, snapshot,
- and restore functionality."
+Date: Fri, 22 May 2026 15:05:47 +1000
+Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
 
 ---
- admin/tool/phpunit/cli/util.php |  30 ++-
- lib/phpunit/bootstraplib.php    |  10 +-
- lib/phpunit/classes/util.php    | 357 +++++++++++++++++++++++++++++++-
- lib/testing/classes/util.php    |  20 +-
- 4 files changed, 407 insertions(+), 10 deletions(-)
+ admin/tool/phpunit/cli/util.php |  28 ++-
+ lib/phpunit/classes/util.php    | 371 +++++++++++++++++++++++++++++++-
+ lib/testing/classes/util.php    |   7 +
+ 3 files changed, 402 insertions(+), 4 deletions(-)
 
 diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
-index 3cc928a9e5a..8af8dc64531 100644
+index 3cc928a9e5a..988e45f150d 100644
 --- a/admin/tool/phpunit/cli/util.php
 +++ b/admin/tool/phpunit/cli/util.php
 @@ -47,6 +47,9 @@ list($options, $unrecognized) = cli_get_params(
@@ -25,15 +23,6 @@ index 3cc928a9e5a..8af8dc64531 100644
          'help'                  => false,
      ],
      [
-@@ -61,7 +64,7 @@ if (!file_exists(__DIR__.'/../../../../vendor/phpunit/phpunit/composer.json') ||
-     phpunit_bootstrap_error(PHPUNIT_EXITCODE_PHPUNITMISSING);
- }
- 
--if ($options['install'] || $options['drop']) {
-+if ($options['install'] || $options['drop'] || $options['upgrade']) {
-     define('CACHE_DISABLE_ALL', true);
- }
- 
 @@ -102,8 +105,16 @@ $drop = $options['drop'];
  $install = $options['install'];
  $buildconfig = $options['buildconfig'];
@@ -78,34 +67,25 @@ index 3cc928a9e5a..8af8dc64531 100644
 +    phpunit_util::restore_site(is_string($restore) ? $restore : '');
 +    exit(0);
  }
-diff --git a/lib/phpunit/bootstraplib.php b/lib/phpunit/bootstraplib.php
-index a9640994bfd..bf3112cf1f5 100644
---- a/lib/phpunit/bootstraplib.php
-+++ b/lib/phpunit/bootstraplib.php
-@@ -65,12 +65,14 @@ function phpunit_bootstrap_error($errorcode, $text = '') {
-             $text = "Moodle PHPUnit environment configuration warning:\n".$text;
-             break;
-         case PHPUNIT_EXITCODE_INSTALL:
--            $path = testing_cli_argument_path('/admin/tool/phpunit/cli/init.php');
--            $text = "Moodle PHPUnit environment is not initialised, please use:\n php $path";
-+            $initpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
-+            $text = "Moodle PHPUnit environment is not initialised, please use:\n php $initpath";
-             break;
-         case PHPUNIT_EXITCODE_REINSTALL:
--            $path = testing_cli_argument_path('/admin/tool/phpunit/cli/init.php');
--            $text = "Moodle PHPUnit environment was initialised for different version, please use:\n php $path";
-+            $initpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
-+            $utilpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/util.php');
-+            $text = "Moodle PHPUnit environment was initialised for different version, please use:\n"
-+                . " php $initpath\n or php $utilpath --upgrade";
-             break;
-         default:
-             $text = empty($text) ? '' : ': '.$text;
 diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
-index 86b52503aa3..6406c98a2fb 100644
+index 86b52503aa3..9063b7e5717 100644
 --- a/lib/phpunit/classes/util.php
 +++ b/lib/phpunit/classes/util.php
-@@ -520,8 +520,361 @@ class phpunit_util extends testing_util {
+@@ -451,6 +451,13 @@ class phpunit_util extends testing_util {
+             echo "Purging dataroot:\n";
+         }
+ 
++        // Preserve any snapshot zips so they survive the drop.
++        foreach (scandir(self::get_dataroot()) as $item) {
++            if (str_ends_with($item, '.zip')) {
++                static::$datarootskiponreset[] = $item;
++            }
++        }
++
+         self::reset_dataroot();
+         testing_initdataroot($CFG->dataroot, 'phpunit');
+ 
+@@ -520,8 +527,368 @@ class phpunit_util extends testing_util {
      }
  
      /**
@@ -263,6 +243,11 @@ index 86b52503aa3..6406c98a2fb 100644
 +
 +        echo "Restoring from $snapshot\n";
 +
++        $phpunitdir = $dataroot . DIRECTORY_SEPARATOR . 'phpunit';
++        if (!is_dir($phpunitdir)) {
++            mkdir($phpunitdir, 0777, true);
++        }
++
 +        // Copy snapshot DB control files to their active locations.
 +        foreach ($datafiles as $src => $dest) {
 +            copy($src, $dest);
@@ -277,10 +262,11 @@ index 86b52503aa3..6406c98a2fb 100644
 +        self::reset_database();
 +
 +        echo "Data imported. Resetting datarooot...\n";
++
 +        // Clear current dataroot before restoring filedir from snapshot.
++        static::$datarootskiponreset = ['.', '..', 'phpunittestdir.txt', 'phpunit', '.htaccess', $snapshot, "$snapshot.zip"];
 +        self::reset_dataroot();
 +        self::reset_original_data();
-+        static::$datarootskiponreset = ['.', '..', 'phpunittestdir.txt', 'phpunit', '.htaccess'];
 +
 +        $snapshotfiledir = $snapshotdir . DIRECTORY_SEPARATOR . 'filedir';
 +        $filedir = $dataroot . DIRECTORY_SEPARATOR . 'filedir';
@@ -302,6 +288,7 @@ index 86b52503aa3..6406c98a2fb 100644
 +        self::$lastdbwrites = $DB->perf_get_writes();
 +
 +        remove_dir($snapshotdir);
++        unlink($zipfile);
 +
 +        echo "Snapshot successfully restored.\n";
 +    }
@@ -470,20 +457,10 @@ index 86b52503aa3..6406c98a2fb 100644
       */
      public static function build_config_file() {
 diff --git a/lib/testing/classes/util.php b/lib/testing/classes/util.php
-index 5315c77c94b..4550e4d4a2d 100644
+index 5315c77c94b..dea37ca6a56 100644
 --- a/lib/testing/classes/util.php
 +++ b/lib/testing/classes/util.php
-@@ -122,9 +122,23 @@ abstract class testing_util {
-      */
-     final protected static function get_framework() {
-         $classname = get_called_class();
-+        $reflectedclass = new \ReflectionClass($classname);
-+
-+        if ($reflectedclass->inNamespace()) {
-+            $namespaces = explode('\\', $reflectedclass->getNamespaceName());
-+            return array_shift($namespaces);
-+        }
-+
+@@ -125,6 +125,13 @@ abstract class testing_util {
          return substr($classname, 0, strpos($classname, '_'));
      }
  
@@ -497,19 +474,6 @@ index 5315c77c94b..4550e4d4a2d 100644
      /**
       * Get data generator
       * @static
-@@ -712,7 +726,11 @@ abstract class testing_util {
-         // Clean up the dataroot folder.
-         $handle = opendir(self::get_dataroot());
-         while (false !== ($item = readdir($handle))) {
--            if (in_array($item, $childclassname::$datarootskiponreset)) {
-+            // Explicitly check for a snapshot zip and add it to the skip on reset array if there is one.
-+            if (str_contains($item, 'snapshot-')) {
-+                static::$datarootskiponreset[] = $item;
-+            }
-+            if (in_array($item, static::$datarootskiponreset)) {
-                 continue;
-             }
-             if (is_dir(self::get_dataroot() . "/$item")) {
 -- 
 2.43.0
 
