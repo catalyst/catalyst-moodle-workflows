@@ -75,6 +75,7 @@ runs:
         START_TS=$(date +%s)
         echo "::group::Install moodle-plugin-ci"
 
+        time composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
         composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
 
         END_TS=$(date +%s)
@@ -87,7 +88,6 @@ runs:
         START_TS=$(date +%s)
         echo "::group::Add moodle-plugin-ci binaries to PATH"
 
-        time composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci m-ci ^4
         # Add dirs to $PATH
         echo $(cd m-ci/bin; pwd) >> $GITHUB_PATH
         echo $(cd m-ci/vendor/bin; pwd) >> $GITHUB_PATH
@@ -137,6 +137,12 @@ runs:
         IMAGE="${IMAGE//_/-}"
         IMAGE="${IMAGE,,}:latest"
         time git clone https://github.com/moodle/moodle.git --branch $MOODLE_BRANCH $GITHUB_WORKSPACE/moodletemp
+        BRANCH="${{ inputs.moodle_branch }}"
+        DB="${{ inputs.database }}"
+        # Build image name: snapshot-{branch}-{db}, lowercased, underscores->hyphens.
+        IMAGE="ghcr.io/catalyst/snapshot-${BRANCH}-${DB}"
+        IMAGE="${IMAGE//_/-}"
+        IMAGE="${IMAGE,,}:latest"
 
         echo "Pulling snapshot image $IMAGE..."
         docker pull "$IMAGE"
