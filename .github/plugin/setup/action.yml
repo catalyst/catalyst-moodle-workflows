@@ -71,8 +71,8 @@ runs:
 
     - name: Add moodle-plugin-ci binaries to PATH
       run: |
-        START_TS=$(date +%s)
         echo "::group::Add moodle-plugin-ci binaries to PATH"
+        START_TS=$(date +%s)
 
         # Add dirs to $PATH
         echo $(cd m-ci/bin; pwd) >> $GITHUB_PATH
@@ -85,8 +85,8 @@ runs:
 
     - name: Generate en_AU locale
       run: |
-        START_TS=$(date +%s)
         echo "::group::Generate en_AU locale"
+        START_TS=$(date +%s)
 
         # PHPUnit depends on en_AU.UTF-8 locale
         sudo locale-gen en_AU.UTF-8
@@ -99,8 +99,8 @@ runs:
     - name: Install dependencies
       if: ${{ inputs.extra_plugin_runners }}
       run: |
-        START_TS=$(date +%s)
         echo "::group::Install dependencies"
+        START_TS=$(date +%s)
 
         ${{ inputs.extra_plugin_runners }}
 
@@ -111,8 +111,8 @@ runs:
 
     - name: Apply plugin branch patch
       run: |
-        START_TS=$(date +%s)
         echo "::group::Apply plugin branch patch"
+        START_TS=$(date +%s)
 
         TARGET_REPO="$GITHUB_WORKSPACE/moodle"
         PATCH="$GITHUB_WORKSPACE/plugin/patch/${{ inputs.moodle_branch }}.diff"
