@@ -251,7 +251,8 @@ jobs:
           cd moodle
           php "$PHPUNIT_UTIL" --snapshot=ci-phpunit
 
-          PHPUNIT_DATAROOT=$(php -r "define('ABORT_AFTER_CONFIG', true); require 'config.php'; echo \$CFG->phpunit_dataroot;")
+          # phpunit_dataroot is always $GITHUB_WORKSPACE/moodledata/phpunit per the config template.
+          PHPUNIT_DATAROOT="$GITHUB_WORKSPACE/moodledata/phpunit"
           PHPUNIT_SNAPSHOT=$(find "$PHPUNIT_DATAROOT" -maxdepth 1 -type f -name '*-ci-phpunit-*.zip' | head -n1)
 
           if [ -z "$PHPUNIT_SNAPSHOT" ]; then
