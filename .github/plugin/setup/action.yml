@@ -136,6 +136,10 @@ runs:
     - name: Install plugin into Moodle
       shell: bash
       run: |
+        if [ ! -f "plugin/version.php" ]; then
+          echo "No plugin/version.php found, skipping plugin install."
+          exit 0
+        fi
         COMPONENT=$(php -r "
           define('MOODLE_INTERNAL', true);
           define('MATURITY_ALPHA', 50);
