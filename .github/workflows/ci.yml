@@ -566,6 +566,45 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
+      - name: Create database and restore PHPUnit snapshot
+        run: |
+          START_TS=$(date +%s)
+
+          # Extract phpunit snapshot zip from the image — fail if missing.
+          CID=$(docker create "$SNAPSHOT_IMAGE")
+          docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip
+          docker rm "$CID"
+
+          # Create the Moodle database.
+          if [ "${{ matrix.database }}" = "pgsql" ]; then
+            psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
+            psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
+          else
+            mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          fi
+
+          # phpunit_dataroot is always $GITHUB_WORKSPACE/moodledata/phpunit per the config template.
+          PHPUNIT_DATAROOT="$GITHUB_WORKSPACE/moodledata/phpunit"
+          mkdir -p "$PHPUNIT_DATAROOT"
+          cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
+
+          # Detect phpunit util location (differs between classic and public/ layouts).
+          if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php"
+          elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php"
+          else
+            echo "Could not locate phpunit util.php"
+            exit 1
+          fi
+
+          php "$PHPUNIT_UTIL" --restore=ci-phpunit
+          php "$PHPUNIT_UTIL" --upgrade
+          php "$PHPUNIT_UTIL" --buildconfig
+
+          END_TS=$(date +%s)
+          echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
+        shell: bash
       - name: Run phpunit
         run: |
           cd moodle
