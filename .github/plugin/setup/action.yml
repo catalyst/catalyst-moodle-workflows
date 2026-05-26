@@ -133,27 +133,48 @@ runs:
         echo "::endgroup::"
       shell: bash
 
-    - name: Restore snapshot artifacts
+    - name: Create database and restore PHPUnit snapshot
       if: ${{ inputs.database != '' }}
+      shell: bash
+      env:
+        DB: ${{ inputs.database }}
       run: |
         START_TS=$(date +%s)
-        echo "::group::Restore snapshot artifacts"
+        echo "::group::Create database and restore PHPUnit snapshot"
 
-        # Extract phpunit snapshot from the image.
+        # Extract phpunit snapshot zip from the image — fail if missing.
         CID=$(docker create "$SNAPSHOT_IMAGE")
-        if docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip; then
-          echo "Found phpunit snapshot archive in image."
-        else
-          echo "No phpunit snapshot archive found in image."
-          docker rm "$CID"
-          exit 1
-        fi
+        docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip
         docker rm "$CID"
 
+        # Create the Moodle database.
+        if [ "$DB" = "pgsql" ]; then
+          psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
+          psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
+        else
+          mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        fi
+
+        # Resolve phpunit_dataroot without a DB connection.
+        PHPUNIT_DATAROOT=$(php -r "define('ABORT_AFTER_CONFIG', true); require 'moodle/config.php'; echo \$CFG->phpunit_dataroot;")
+        mkdir -p "$PHPUNIT_DATAROOT"
+        cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
+
+        # Detect phpunit util location (differs between classic and public/ layouts).
+        if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php" ]; then
+          PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php"
+        elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php" ]; then
+          PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php"
+        else
+          echo "Could not locate phpunit util.php"
+          exit 1
+        fi
+
+        php "$PHPUNIT_UTIL" --restore=ci-phpunit
+
         END_TS=$(date +%s)
-        echo "Restore snapshot artifacts took $((END_TS - START_TS))s"
+        echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
         echo "::endgroup::"
-      shell: bash
 
     - name: Install plugin into Moodle (no database)
       if: ${{ inputs.database == '' }}
