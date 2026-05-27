@@ -1,19 +1,19 @@
-From 192dc1a2146891462759923aaf6e6f934999c99a Mon Sep 17 00:00:00 2001
+From 6bdbe047e859f83718c56333449f1ce2ca4e602a Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
-Date: Fri, 22 May 2026 15:05:47 +1000
+Date: Tue, 26 May 2026 17:26:32 +1000
 Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
 
 ---
- admin/tool/phpunit/cli/util.php |  28 ++-
- lib/phpunit/bootstrap.php       |   2 +-
- lib/phpunit/classes/util.php    | 376 +++++++++++++++++++++++++++++++-
- lib/testing/classes/util.php    |   7 +
- 4 files changed, 408 insertions(+), 5 deletions(-)
+ public/admin/tool/phpunit/cli/util.php |  28 +-
+ public/lib/phpunit/bootstrap.php       |   2 +-
+ public/lib/phpunit/classes/util.php    | 372 +++++++++++++++++++++++++
+ public/lib/testing/classes/util.php    |   7 +
+ 4 files changed, 406 insertions(+), 3 deletions(-)
 
-diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
-index 3cc928a9e5a..988e45f150d 100644
---- a/admin/tool/phpunit/cli/util.php
-+++ b/admin/tool/phpunit/cli/util.php
+diff --git a/public/admin/tool/phpunit/cli/util.php b/public/admin/tool/phpunit/cli/util.php
+index ff5eb956ddd..2ac4af73b74 100644
+--- a/public/admin/tool/phpunit/cli/util.php
++++ b/public/admin/tool/phpunit/cli/util.php
 @@ -47,6 +47,9 @@ list($options, $unrecognized) = cli_get_params(
          'buildcomponentconfigs' => false,
          'diag'                  => false,
@@ -68,10 +68,10 @@ index 3cc928a9e5a..988e45f150d 100644
 +    phpunit_util::restore_site(is_string($restore) ? $restore : '');
 +    exit(0);
  }
-diff --git a/lib/phpunit/bootstrap.php b/lib/phpunit/bootstrap.php
-index 9aedea38c3e..19ebfdec034 100644
---- a/lib/phpunit/bootstrap.php
-+++ b/lib/phpunit/bootstrap.php
+diff --git a/public/lib/phpunit/bootstrap.php b/public/lib/phpunit/bootstrap.php
+index 8916ad69765..60da5faee50 100644
+--- a/public/lib/phpunit/bootstrap.php
++++ b/public/lib/phpunit/bootstrap.php
 @@ -151,7 +151,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
  if (!file_exists("$CFG->phpunit_dataroot/phpunittestdir.txt")) {
      if ($dh = opendir($CFG->phpunit_dataroot)) {
@@ -81,11 +81,11 @@ index 9aedea38c3e..19ebfdec034 100644
                  continue;
              }
              phpunit_bootstrap_error(
-diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
-index 86b52503aa3..efca15659f3 100644
---- a/lib/phpunit/classes/util.php
-+++ b/lib/phpunit/classes/util.php
-@@ -451,6 +451,13 @@ class phpunit_util extends testing_util {
+diff --git a/public/lib/phpunit/classes/util.php b/public/lib/phpunit/classes/util.php
+index fcc574117ae..7436abae5f6 100644
+--- a/public/lib/phpunit/classes/util.php
++++ b/public/lib/phpunit/classes/util.php
+@@ -454,6 +454,13 @@ class phpunit_util extends testing_util {
              echo "Purging dataroot:\n";
          }
  
@@ -99,12 +99,11 @@ index 86b52503aa3..efca15659f3 100644
          self::reset_dataroot();
          testing_initdataroot($CFG->dataroot, 'phpunit');
  
-@@ -520,8 +527,373 @@ class phpunit_util extends testing_util {
+@@ -524,6 +531,371 @@ class phpunit_util extends testing_util {
+         self::store_database_state();
      }
  
-     /**
--     * Builds dirroot/phpunit.xml file using defaults from /phpunit.xml.dist
--     * @static
++    /**
 +     * Create a snapshot of the current test site database and site data.
 +     *
 +     * @param string $snapshotname The name of the snapshot.
@@ -469,16 +468,13 @@ index 86b52503aa3..efca15659f3 100644
 +        echo "\nTables successfully created from snapshot.\n";
 +    }
 +
-+    /**
-+     * Builds root/phpunit.xml file using defaults from /phpunit.xml.dist
-+     *
-      * @return bool true means main config file created, false means only dataroot file created
-      */
-     public static function build_config_file() {
-diff --git a/lib/testing/classes/util.php b/lib/testing/classes/util.php
-index 5315c77c94b..dea37ca6a56 100644
---- a/lib/testing/classes/util.php
-+++ b/lib/testing/classes/util.php
+     /**
+      * Builds root/phpunit.xml file using defaults from /phpunit.xml.dist
+      *
+diff --git a/public/lib/testing/classes/util.php b/public/lib/testing/classes/util.php
+index 3073cde3bf7..070adfa78ce 100644
+--- a/public/lib/testing/classes/util.php
++++ b/public/lib/testing/classes/util.php
 @@ -125,6 +125,13 @@ abstract class testing_util {
          return substr($classname, 0, strpos($classname, '_'));
      }
@@ -495,4 +491,3 @@ index 5315c77c94b..dea37ca6a56 100644
       * @static
 -- 
 2.43.0
-
