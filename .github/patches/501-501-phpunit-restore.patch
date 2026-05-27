@@ -1,4 +1,4 @@
-From c23dbbf7bb4dc5b2105d827672e4acab695f8e1e Mon Sep 17 00:00:00 2001
+From 6bdbe047e859f83718c56333449f1ce2ca4e602a Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
 Date: Tue, 26 May 2026 17:26:32 +1000
 Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
@@ -6,9 +6,9 @@ Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
 ---
  public/admin/tool/phpunit/cli/util.php |  28 +-
  public/lib/phpunit/bootstrap.php       |   2 +-
- public/lib/phpunit/classes/util.php    | 367 +++++++++++++++++++++++++
+ public/lib/phpunit/classes/util.php    | 372 +++++++++++++++++++++++++
  public/lib/testing/classes/util.php    |   7 +
- 4 files changed, 401 insertions(+), 3 deletions(-)
+ 4 files changed, 406 insertions(+), 3 deletions(-)
 
 diff --git a/public/admin/tool/phpunit/cli/util.php b/public/admin/tool/phpunit/cli/util.php
 index ff5eb956ddd..2ac4af73b74 100644
@@ -82,7 +82,7 @@ index 8916ad69765..60da5faee50 100644
              }
              phpunit_bootstrap_error(
 diff --git a/public/lib/phpunit/classes/util.php b/public/lib/phpunit/classes/util.php
-index fcc574117ae..a8764ba0e98 100644
+index fcc574117ae..7436abae5f6 100644
 --- a/public/lib/phpunit/classes/util.php
 +++ b/public/lib/phpunit/classes/util.php
 @@ -454,6 +454,13 @@ class phpunit_util extends testing_util {
@@ -99,7 +99,7 @@ index fcc574117ae..a8764ba0e98 100644
          self::reset_dataroot();
          testing_initdataroot($CFG->dataroot, 'phpunit');
  
-@@ -524,6 +531,366 @@ class phpunit_util extends testing_util {
+@@ -524,6 +531,371 @@ class phpunit_util extends testing_util {
          self::store_database_state();
      }
  
@@ -410,9 +410,14 @@ index fcc574117ae..a8764ba0e98 100644
 +                        $field->setLength($col->max_length ?: 10);
 +                        break;
 +                    case 'N':
-+                        $field->setType(XMLDB_TYPE_NUMBER);
-+                        $field->setLength($col->max_length ?: 10);
-+                        $field->setDecimals($col->scale ?: 0);
++                        $floattypes = ['float', 'double', 'float4', 'float8', 'double precision'];
++                        if (in_array(strtolower($col->type ?? ''), $floattypes)) {
++                            $field->setType(XMLDB_TYPE_FLOAT);
++                        } else {
++                            $field->setType(XMLDB_TYPE_NUMBER);
++                            $field->setLength($col->max_length ?: 10);
++                            $field->setDecimals($col->scale ?: 0);
++                        }
 +                        break;
 +                    case 'C':
 +                        $field->setType(XMLDB_TYPE_CHAR);
