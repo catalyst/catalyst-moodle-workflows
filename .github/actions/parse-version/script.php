@@ -248,22 +248,35 @@ if (!empty($phpVersions)) {
     usort($phpVersions, 'version_compare');
     $highestPhp = end($phpVersions);
     output('highest_php', $highestPhp);
-    // Find the container and node for this combo
+    // Find the container and node for this combo.
+    // Prefer the pgsql entry when present so latest_pgsql_ver is reliably populated.
     $foundNode = '';
+    $foundPgsqlVer = '';
     foreach ($finalMatrix as $entry) {
         if ($entry['moodle-branch'] === $highestMoodleBranch && $entry['php'] === $highestPhp) {
             output('latest_container', $entry['container']);
-            if (isset($entry['pgsql-ver'])) {
-                output('latest_pgsql_ver', $entry['pgsql-ver']);
-            } else {
-                output('latest_pgsql_ver', '');
-            }
             if (isset($entry['node'])) {
                 $foundNode = $entry['node'];
             }
-            break;
+            if (($entry['database'] ?? '') === 'pgsql' && isset($entry['pgsql-ver'])) {
+                $foundPgsqlVer = $entry['pgsql-ver'];
+                break;
+            }
         }
     }
+
+    // If no exact highest-php pgsql entry was found, fallback to any pgsql for the highest branch.
+    if ($foundPgsqlVer === '') {
+        foreach ($finalMatrix as $entry) {
+            if ($entry['moodle-branch'] === $highestMoodleBranch && ($entry['database'] ?? '') === 'pgsql' && isset($entry['pgsql-ver'])) {
+                $foundPgsqlVer = $entry['pgsql-ver'];
+                break;
+            }
+        }
+    }
+
+    output('latest_pgsql_ver', $foundPgsqlVer);
+
     // If node version not found above, fallback to highest node version
     if (!$foundNode && !empty($nodeVersions)) {
         usort($nodeVersions, 'version_compare');

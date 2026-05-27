@@ -1,0 +1,498 @@
+From 922f91b1cfd353c00f5dcd41d7c52bced26917b4 Mon Sep 17 00:00:00 2001
+From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
+Date: Fri, 22 May 2026 15:05:47 +1000
+Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
+
+---
+ admin/tool/phpunit/cli/util.php |  28 ++-
+ lib/phpunit/bootstrap.php       |   2 +-
+ lib/phpunit/classes/util.php    | 376 +++++++++++++++++++++++++++++++-
+ lib/testing/classes/util.php    |   7 +
+ 4 files changed, 408 insertions(+), 5 deletions(-)
+
+diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
+index 1d176900fdf..39cd67fb20f 100644
+--- a/admin/tool/phpunit/cli/util.php
++++ b/admin/tool/phpunit/cli/util.php
+@@ -47,6 +47,9 @@ list($options, $unrecognized) = cli_get_params(
+         'buildcomponentconfigs' => false,
+         'diag'                  => false,
+         'run'                   => false,
++        'upgrade'               => false,
++        'snapshot'              => '',
++        'restore'               => '',
+         'help'                  => false,
+     ),
+     array(
+@@ -102,8 +105,16 @@ $drop = $options['drop'];
+ $install = $options['install'];
+ $buildconfig = $options['buildconfig'];
+ $buildcomponentconfigs = $options['buildcomponentconfigs'];
+-
+-if ($options['help'] or (!$drop and !$install and !$buildconfig and !$buildcomponentconfigs and !$diag)) {
++$snapshot = $options['snapshot'];
++$restore = $options['restore'];
++$upgrade = $options['upgrade'];
++
++if (
++    $options['help'] || (
++    !$drop && !$install && !$buildconfig && !$buildcomponentconfigs
++    && !$diag && !$upgrade && !$snapshot && !$restore
++                )
++) {
+     $help = "Various PHPUnit utility functions
+ 
+ Options:
+@@ -114,6 +125,10 @@ Options:
+ --buildconfig  Build /phpunit.xml from /phpunit.xml.dist that runs all tests
+ --buildcomponentconfigs
+                Build distributed phpunit.xml files for each component
++--upgrade      Upgrade test site to latest version
++--snapshot     Create snapshot of the current test site. Optionally specify name of the snapshot with
++               --snapshot=NAME.
++--restore=NAME Restore snapshot of test site with the specified name.
+ 
+ -h, --help     Print out this help
+ 
+@@ -152,4 +167,13 @@ if ($diag) {
+ } else if ($install) {
+     phpunit_util::install_site();
+     exit(0);
++} else if ($upgrade) {
++    phpunit_util::upgrade_site();
++    exit(0);
++} else if ($snapshot) {
++    phpunit_util::snapshot_site(is_string($snapshot) ? $snapshot : '');
++    exit(0);
++} else if ($restore) {
++    phpunit_util::restore_site(is_string($restore) ? $restore : '');
++    exit(0);
+ }
+diff --git a/lib/phpunit/bootstrap.php b/lib/phpunit/bootstrap.php
+index e8be0752c2d..d1306ff2c54 100644
+--- a/lib/phpunit/bootstrap.php
++++ b/lib/phpunit/bootstrap.php
+@@ -135,7 +135,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
+ if (!file_exists("$CFG->phpunit_dataroot/phpunittestdir.txt")) {
+     if ($dh = opendir($CFG->phpunit_dataroot)) {
+         while (($file = readdir($dh)) !== false) {
+-            if ($file === 'phpunit' or $file === '.' or $file === '..' or $file === '.DS_Store') {
++            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store' || str_ends_with($file, '.zip')) {
+                 continue;
+             }
+             phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, '$CFG->phpunit_dataroot directory is not empty, can not run tests! Is it used for anything else?');
+diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
+index 9d5acc4bae0..44a3215e1f5 100644
+--- a/lib/phpunit/classes/util.php
++++ b/lib/phpunit/classes/util.php
+@@ -427,6 +427,13 @@ class phpunit_util extends testing_util {
+             echo "Purging dataroot:\n";
+         }
+ 
++        // Preserve any snapshot zips so they survive the drop.
++        foreach (scandir(self::get_dataroot()) as $item) {
++            if (str_ends_with($item, '.zip')) {
++                static::$datarootskiponreset[] = $item;
++            }
++        }
++
+         self::reset_dataroot();
+         testing_initdataroot($CFG->dataroot, 'phpunit');
+ 
+@@ -496,8 +503,373 @@ class phpunit_util extends testing_util {
+     }
+ 
+     /**
+-     * Builds dirroot/phpunit.xml file using defaults from /phpunit.xml.dist
+-     * @static
++     * Create a snapshot of the current test site database and site data.
++     *
++     * @param string $snapshotname The name of the snapshot.
++     * @return void may terminate execution with exit code
++     */
++    public static function snapshot_site(string $snapshotname) {
++        global $DB, $CFG;
++
++        require($CFG->dirroot . '/version.php');
++
++        if (!self::is_test_site()) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, 'Can not snapshot non-test site!!');
++        }
++
++        if (empty($DB->get_tables())) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_INSTALL, 'No database tables present, can not snapshot site!!');
++        }
++
++        $dataroot = self::get_dataroot();
++        $dbtype = $CFG->dbtype;
++        $name = $snapshotname ? "$dbtype-$snapshotname-$version" : "$dbtype-snapshot-$version";
++        $snapshotdir = $dataroot . "/$name";
++
++        // Clear old in-memory caches of snapshot data.
++        self::$tabledata = null;
++        self::$tablestructure = null;
++        self::$sequencenames = null;
++
++        $sitedatapath = $dataroot . DIRECTORY_SEPARATOR . self::get_originaldatafilesjson();
++
++        if (file_exists($sitedatapath)) {
++            unlink($sitedatapath);
++        }
++
++        self::reset_original_data();
++        self::save_original_data_files();
++        self::store_database_state();
++        self::store_versions_hash();
++        self::$lastdbwrites = $DB->perf_get_writes();
++
++        if (is_dir($snapshotdir)) {
++            remove_dir($snapshotdir);
++        }
++
++        mkdir($snapshotdir);
++
++        $filedir = $dataroot . DIRECTORY_SEPARATOR . 'filedir';
++
++        self::copy_filedir($filedir, $snapshotdir . DIRECTORY_SEPARATOR . 'filedir' . DIRECTORY_SEPARATOR);
++
++        $datafiles = [
++            "$dataroot" . DIRECTORY_SEPARATOR . "phpunit" . DIRECTORY_SEPARATOR . "tabledata.ser",
++            "$dataroot" . DIRECTORY_SEPARATOR . "phpunit" . DIRECTORY_SEPARATOR . "tablestructure.ser",
++            "$dataroot" . DIRECTORY_SEPARATOR . "phpunit" . DIRECTORY_SEPARATOR . "versionshash.txt",
++            "$dataroot" . DIRECTORY_SEPARATOR . "originaldatafiles.json",
++        ];
++
++        foreach ($datafiles as $file) {
++            if (!file_exists($file)) {
++                continue;
++            }
++            copy($file, $snapshotdir . DIRECTORY_SEPARATOR . basename($file));
++        }
++
++        $dirtozip = $dataroot . DIRECTORY_SEPARATOR . "$name";
++
++        $zip = new \ZipArchive();
++        $zip->open("$dirtozip.zip", \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
++
++        $files = new \RecursiveIteratorIterator(
++            new \RecursiveDirectoryIterator($dirtozip, \RecursiveDirectoryIterator::SKIP_DOTS),
++            \RecursiveIteratorIterator::LEAVES_ONLY
++        );
++
++        foreach ($files as $file) {
++            if (!$file->isDir()) {
++                $filepath = $file->getRealPath();
++                $filepathrelative = substr($filepath, strlen($dirtozip) + 1);
++                $zip->addFile($filepath, $filepathrelative);
++            }
++        }
++
++        $zip->close();
++        remove_dir($snapshotdir);
++
++        echo "Snapshot successfully created in $dirtozip.zip\n";
++    }
++
++    /**
++     * Restore the database and dataroot to the state they were in when snapshot_site() was called.
++     *
++     * @param string $snapshot The snapshot to restore.
++     * @return void may terminate execution with exit code
++     */
++    public static function restore_site(string $snapshot) {
++        global $DB, $CFG;
++
++        require($CFG->dirroot . '/version.php');
++
++        if (!self::is_test_site()) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, 'Can not restore non-test site!!');
++        }
++
++        if (!empty($DB->get_tables())) {
++            echo "Database tables are still present. Run php public/admin/tool/phpunit/cli/util.php --drop before restoring.\n";
++            return;
++        }
++
++        if (!$snapshot) {
++            echo "No snapshot name provided. Please provide the snapshot name as an argument.\n";
++            return;
++        }
++
++        $dataroot = self::get_dataroot();
++        $zipfile = $dataroot . DIRECTORY_SEPARATOR . "$snapshot.zip";
++        $destpath = $dataroot . DIRECTORY_SEPARATOR . "$snapshot";
++
++        $zip = new \ZipArchive();
++        if ($zip->open($zipfile) === true) {
++            $zip->extractTo($destpath);
++            $zip->close();
++        } else {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Can not open snapshot zip file $zipfile!!");
++        }
++
++        $snapshotdir = $dataroot . "/$snapshot";
++
++        // Map snapshot files to their active locations.
++        $datafiles = [
++            "$snapshotdir" . DIRECTORY_SEPARATOR . "tabledata.ser"
++            => $dataroot . DIRECTORY_SEPARATOR . 'phpunit' . DIRECTORY_SEPARATOR . "tabledata.ser",
++            "$snapshotdir" . DIRECTORY_SEPARATOR . "tablestructure.ser"
++            => $dataroot . DIRECTORY_SEPARATOR . 'phpunit' . DIRECTORY_SEPARATOR . "tablestructure.ser",
++            "$snapshotdir" . DIRECTORY_SEPARATOR . "versionshash.txt"
++            => $dataroot . DIRECTORY_SEPARATOR . 'phpunit' . DIRECTORY_SEPARATOR . "versionshash.txt",
++            "$snapshotdir" . DIRECTORY_SEPARATOR . "originaldatafiles.json"
++            => $dataroot . DIRECTORY_SEPARATOR . self::get_originaldatafilesjson(),
++        ];
++
++        foreach ($datafiles as $src => $dest) {
++            if (!file_exists($src)) {
++                phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Required snapshot file $src does not exist!!");
++            }
++        }
++
++        self::$lastdbwrites = null;
++        self::$tabledata = null;
++        self::$tablestructure = null;
++        self::$sequencenames = null;
++
++        echo "Restoring from $snapshot\n";
++
++        $phpunitdir = $dataroot . DIRECTORY_SEPARATOR . 'phpunit';
++        if (!is_dir($phpunitdir)) {
++            mkdir($phpunitdir, 0777, true);
++        }
++
++        // Copy snapshot DB control files to their active locations.
++        foreach ($datafiles as $src => $dest) {
++            copy($src, $dest);
++        }
++
++        if (empty($DB->get_tables(false))) {
++            self::create_tables_from_snapshot($destpath);
++        }
++
++        echo "Importing snapshot data...\n";
++        // Restore the database to snapshot state.
++        self::reset_database();
++
++        echo "Data imported. Resetting datarooot...\n";
++
++        // Clear current dataroot before restoring filedir from snapshot.
++        static::$datarootskiponreset = ['.', '..', 'phpunittestdir.txt', 'phpunit', '.htaccess', $snapshot, "$snapshot.zip"];
++        self::reset_dataroot();
++        self::reset_original_data();
++
++        $snapshotfiledir = $snapshotdir . DIRECTORY_SEPARATOR . 'filedir';
++        $filedir = $dataroot . DIRECTORY_SEPARATOR . 'filedir';
++
++        // Copy snapshot filedir back to dataroot.
++        self::copy_filedir($snapshotfiledir, $filedir);
++
++        initialise_cfg();
++
++        // Execute all adhoc tasks.
++        while ($task = \core\task\manager::get_next_adhoc_task(time())) {
++            $task->execute();
++            \core\task\manager::adhoc_task_complete($task);
++        }
++
++        set_config('upgraderunning', 0);
++
++        self::store_database_state();
++        self::$lastdbwrites = $DB->perf_get_writes();
++
++        remove_dir($snapshotdir);
++        unlink($zipfile);
++
++        echo "Snapshot successfully restored.\n";
++    }
++
++    /**
++     * Upgrade the test site and upgrade/install any new plugins that were added.
++     *
++     * @return void may terminate execution with exit code
++     */
++    public static function upgrade_site() {
++
++        if (!self::is_test_site()) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, 'Can not upgrade non-test site!!');
++        }
++
++        if (self::is_test_data_updated()) {
++            echo "No database changes detected, skipping upgrade.\n";
++            return;
++        }
++
++        initialise_cfg();
++        upgrade_noncore(true);
++        set_config('upgraderunning', 0);
++        self::store_versions_hash();
++        self::store_database_state();
++    }
++
++    /**
++     * Helper method that copies all contents from one directory to another, creating directories as needed.
++     *
++     * @param string $sourcedir the source directory to copy
++     * @param string $dirtocreate the destination directory to create and copy files to
++     * @return void
++     */
++    private static function copy_filedir($sourcedir, $dirtocreate) {
++
++        if (!file_exists($sourcedir)) {
++            echo "Source directory $sourcedir does not exist!\n";
++            return;
++        }
++
++        $iterator = new \RecursiveIteratorIterator(
++            new \RecursiveDirectoryIterator($sourcedir, \RecursiveDirectoryIterator::SKIP_DOTS),
++            \RecursiveIteratorIterator::SELF_FIRST
++        );
++
++        if (!is_dir($dirtocreate)) {
++            mkdir($dirtocreate, 0777, true);
++        }
++
++        foreach ($iterator as $item) {
++            $destpath = $dirtocreate . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
++            if ($item->isDir()) {
++                if (!is_dir($destpath)) {
++                    mkdir($destpath, 0777, true);
++                }
++            } else {
++                copy($item->getPathname(), $destpath);
++            }
++        }
++    }
++
++    /**
++     * Create the database tables based on the stored snapshot structure.
++     *
++     * @param string $snapshotdir the target snapshot directory to create the tables from.
++     * @param bool $showprogress whether to show progress during table creation.
++     * @return void may terminate execution with exit code
++     */
++    private static function create_tables_from_snapshot(string $snapshotdir, bool $showprogress = true) {
++        global $DB;
++
++        $dbman = $DB->get_manager();
++
++        $structurefile = $snapshotdir . DIRECTORY_SEPARATOR . 'tablestructure.ser';
++        if (!file_exists($structurefile)) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Snapshot file $structurefile does not exist!!");
++        }
++        $tablestructure = unserialize(file_get_contents($structurefile));
++        if (!is_array($tablestructure)) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Invalid tablestructure.ser in snapshot $snapshotdir");
++        }
++
++        $dotsonline = 0;
++        foreach ($tablestructure as $tablename => $columns) {
++            // If the table already exists, skip it.
++            if ($dbman->table_exists($tablename)) {
++                continue;
++            }
++
++            $table = new \xmldb_table($tablename);
++
++            // Build an xmldb_field for every column.
++            foreach ($columns as $colname => $col) {
++                $field = new \xmldb_field($colname);
++                $sequence = false;
++                // Map each column meta type to the appropriate xmldb type.
++                switch ($col->meta_type) {
++                    case 'R':
++                        $field->setType(XMLDB_TYPE_INTEGER);
++                        $field->setLength(10);
++                        $sequence = true;
++                        break;
++                    case 'I':
++                        $field->setType(XMLDB_TYPE_INTEGER);
++                        $field->setLength($col->max_length ?: 10);
++                        break;
++                    case 'N':
++                        $floattypes = ['float', 'double', 'float4', 'float8', 'double precision'];
++                        if (in_array(strtolower($col->type ?? ''), $floattypes)) {
++                            $field->setType(XMLDB_TYPE_FLOAT);
++                        } else {
++                            $field->setType(XMLDB_TYPE_NUMBER);
++                            $field->setLength($col->max_length ?: 10);
++                            $field->setDecimals($col->scale ?: 0);
++                        }
++                        break;
++                    case 'C':
++                        $field->setType(XMLDB_TYPE_CHAR);
++                        $field->setLength($col->max_length ?: 255);
++                        break;
++                    case 'X':
++                        $field->setType(XMLDB_TYPE_TEXT);
++                        break;
++                    case 'B':
++                        $field->setType(XMLDB_TYPE_BINARY);
++                        break;
++                    case 'L':
++                        $field->setType(XMLDB_TYPE_INTEGER);
++                        $field->setLength(1);
++                        break;
++                    default:
++                        $field->setType(XMLDB_TYPE_INTEGER);
++                        $field->setLength($col->max_length ?: 10);
++                }
++                $field->setNotNull($col->not_null);
++                if ($col->has_default && $col->default_value !== '') {
++                    $field->setDefault($col->default_value);
++                }
++                if ($sequence) {
++                    $field->setSequence(true);
++                }
++                $table->addField($field);
++            }
++            if (isset($columns['id'])) {
++                // Add a primary key for the 'id' column.
++                $key = new \xmldb_key('primary', XMLDB_KEY_PRIMARY, ['id']);
++                $table->addKey($key);
++            }
++            $dbman->create_table($table);
++
++            if ($dotsonline == 60) {
++                if ($showprogress) {
++                    echo "\n";
++                }
++                $dotsonline = 0;
++            }
++            if ($showprogress) {
++                echo '.';
++            }
++            $dotsonline += 1;
++        }
++
++        echo "\nTables successfully created from snapshot.\n";
++    }
++
++    /**
++     * Builds root/phpunit.xml file using defaults from /phpunit.xml.dist
++     *
+      * @return bool true means main config file created, false means only dataroot file created
+      */
+     public static function build_config_file() {
+diff --git a/lib/testing/classes/util.php b/lib/testing/classes/util.php
+index 0c241e6d2b9..fec29319bb1 100644
+--- a/lib/testing/classes/util.php
++++ b/lib/testing/classes/util.php
+@@ -136,6 +136,13 @@ abstract class testing_util {
+         return substr($classname, 0, strpos($classname, '_'));
+     }
+ 
++    /**
++     * Reset the original data.
++     */
++    protected static function reset_original_data() {
++        self::$originaldatafilesjsonadded = false;
++    }
++
+     /**
+      * Get data generator
+      * @static
+-- 
+2.43.0
+
