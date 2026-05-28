@@ -1,4 +1,4 @@
-From 922f91b1cfd353c00f5dcd41d7c52bced26917b4 Mon Sep 17 00:00:00 2001
+From 192dc1a2146891462759923aaf6e6f934999c99a Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
 Date: Fri, 22 May 2026 15:05:47 +1000
 Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
@@ -11,7 +11,7 @@ Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
  4 files changed, 408 insertions(+), 5 deletions(-)
 
 diff --git a/admin/tool/phpunit/cli/util.php b/admin/tool/phpunit/cli/util.php
-index 1d176900fdf..39cd67fb20f 100644
+index 3cc928a9e5a..988e45f150d 100644
 --- a/admin/tool/phpunit/cli/util.php
 +++ b/admin/tool/phpunit/cli/util.php
 @@ -47,6 +47,9 @@ list($options, $unrecognized) = cli_get_params(
@@ -22,14 +22,14 @@ index 1d176900fdf..39cd67fb20f 100644
 +        'snapshot'              => '',
 +        'restore'               => '',
          'help'                  => false,
-     ),
-     array(
+     ],
+     [
 @@ -102,8 +105,16 @@ $drop = $options['drop'];
  $install = $options['install'];
  $buildconfig = $options['buildconfig'];
  $buildcomponentconfigs = $options['buildcomponentconfigs'];
 -
--if ($options['help'] or (!$drop and !$install and !$buildconfig and !$buildcomponentconfigs and !$diag)) {
+-if ($options['help'] || (!$drop && !$install && !$buildconfig && !$buildcomponentconfigs && !$diag)) {
 +$snapshot = $options['snapshot'];
 +$restore = $options['restore'];
 +$upgrade = $options['upgrade'];
@@ -54,7 +54,7 @@ index 1d176900fdf..39cd67fb20f 100644
  
  -h, --help     Print out this help
  
-@@ -152,4 +167,13 @@ if ($diag) {
+@@ -155,4 +170,13 @@ if ($diag) {
  } else if ($install) {
      phpunit_util::install_site();
      exit(0);
@@ -69,23 +69,23 @@ index 1d176900fdf..39cd67fb20f 100644
 +    exit(0);
  }
 diff --git a/lib/phpunit/bootstrap.php b/lib/phpunit/bootstrap.php
-index e8be0752c2d..d1306ff2c54 100644
+index 9aedea38c3e..19ebfdec034 100644
 --- a/lib/phpunit/bootstrap.php
 +++ b/lib/phpunit/bootstrap.php
-@@ -135,7 +135,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
+@@ -151,7 +151,7 @@ if (!is_writable($CFG->phpunit_dataroot)) {
  if (!file_exists("$CFG->phpunit_dataroot/phpunittestdir.txt")) {
      if ($dh = opendir($CFG->phpunit_dataroot)) {
          while (($file = readdir($dh)) !== false) {
--            if ($file === 'phpunit' or $file === '.' or $file === '..' or $file === '.DS_Store') {
+-            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store') {
 +            if ($file === 'phpunit' || $file === '.' || $file === '..' || $file === '.DS_Store' || str_ends_with($file, '.zip')) {
                  continue;
              }
-             phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, '$CFG->phpunit_dataroot directory is not empty, can not run tests! Is it used for anything else?');
+             phpunit_bootstrap_error(
 diff --git a/lib/phpunit/classes/util.php b/lib/phpunit/classes/util.php
-index 9d5acc4bae0..44a3215e1f5 100644
+index 86b52503aa3..efca15659f3 100644
 --- a/lib/phpunit/classes/util.php
 +++ b/lib/phpunit/classes/util.php
-@@ -427,6 +427,13 @@ class phpunit_util extends testing_util {
+@@ -451,6 +451,13 @@ class phpunit_util extends testing_util {
              echo "Purging dataroot:\n";
          }
  
@@ -99,7 +99,7 @@ index 9d5acc4bae0..44a3215e1f5 100644
          self::reset_dataroot();
          testing_initdataroot($CFG->dataroot, 'phpunit');
  
-@@ -496,8 +503,373 @@ class phpunit_util extends testing_util {
+@@ -520,8 +527,373 @@ class phpunit_util extends testing_util {
      }
  
      /**
@@ -476,10 +476,10 @@ index 9d5acc4bae0..44a3215e1f5 100644
       */
      public static function build_config_file() {
 diff --git a/lib/testing/classes/util.php b/lib/testing/classes/util.php
-index 0c241e6d2b9..fec29319bb1 100644
+index 5315c77c94b..dea37ca6a56 100644
 --- a/lib/testing/classes/util.php
 +++ b/lib/testing/classes/util.php
-@@ -136,6 +136,13 @@ abstract class testing_util {
+@@ -125,6 +125,13 @@ abstract class testing_util {
          return substr($classname, 0, strpos($classname, '_'));
      }
  
@@ -495,4 +495,3 @@ index 0c241e6d2b9..fec29319bb1 100644
       * @static
 -- 
 2.43.0
-

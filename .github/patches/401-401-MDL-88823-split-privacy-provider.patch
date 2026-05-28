@@ -1,0 +1,84 @@
+From a17ddea752d6301d11c37a6f5c10a74a6941f195 Mon Sep 17 00:00:00 2001
+From: Brendan Heywood <brendan@catalyst-au.net>
+Date: Wed, 27 May 2026 00:21:05 +1000
+Subject: [PATCH] MDL-88823 tests: Split privacy provider into core and 3rd
+ party.
+
+---
+ privacy/tests/privacy/provider_test.php | 54 +++++++++++++++++++++++--
+ 1 file changed, 51 insertions(+), 3 deletions(-)
+
+diff --git a/privacy/tests/privacy/provider_test.php b/privacy/tests/privacy/provider_test.php
+index a55c6ee6098..de3ee2406a4 100644
+--- a/privacy/tests/privacy/provider_test.php
++++ b/privacy/tests/privacy/provider_test.php
+@@ -166,15 +166,63 @@ final class provider_test extends \core\tests\plugin_checks_testcase {
+     }
+ 
+     /**
+-     * Test that all providers implement some form of compliant provider.
++     * Returns the component list filtered to core (standard) components only.
++     *
++     * @return array
++     */
++    public static function get_core_component_list(): array {
++        $pluginmanager = \core_plugin_manager::instance();
++        return array_filter(self::get_component_list(), function ($component) use ($pluginmanager): bool {
++            $name = $component['component'];
++            if ($name === 'core' || str_starts_with($name, 'core_')) {
++                return true;
++            }
++            $info = $pluginmanager->get_plugin_info($name);
++            return $info !== null && $info->is_standard();
++        });
++    }
++
++    /**
++     * Returns the component list filtered to third-party (non-standard) plugins only.
++     *
++     * @return array
++     */
++    public static function get_thirdparty_component_list(): array {
++        $pluginmanager = \core_plugin_manager::instance();
++        return array_filter(self::get_component_list(), function ($component) use ($pluginmanager): bool {
++            $name = $component['component'];
++            if ($name === 'core' || str_starts_with($name, 'core_')) {
++                return false;
++            }
++            $info = $pluginmanager->get_plugin_info($name);
++            return $info !== null && !$info->is_standard();
++        });
++    }
++
++    /**
++     * Test that all core providers implement some form of compliant provider.
+      *
+      * @group        plugin_checks
+-     * @dataProvider get_component_list
++     * @dataProvider get_core_component_list
++     * @coversNothing
++     * @param string $component frankenstyle component name, e.g. 'mod_assign'
++     * @param string $classname the fully qualified provider classname
++     */
++    public function test_core_providers_compliant($component, $classname): void {
++        $manager = new manager();
++        $this->assertTrue($manager->component_is_compliant($component));
++    }
++
++    /**
++     * Test that all third-party providers implement some form of compliant provider.
++     *
++     * @group        plugin_checks
++     * @dataProvider get_thirdparty_component_list
+      * @coversNothing
+      * @param string $component frankenstyle component name, e.g. 'mod_assign'
+      * @param string $classname the fully qualified provider classname
+      */
+-    public function test_all_providers_compliant($component, $classname): void {
++    public function test_thirdparty_providers_compliant($component, $classname): void {
+         $manager = new manager();
+         $this->assertTrue($manager->component_is_compliant($component));
+     }
+-- 
+2.43.0
+
