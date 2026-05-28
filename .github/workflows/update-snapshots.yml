@@ -9,6 +9,8 @@ on:
       - main
     paths:
       - .github/actions/matrix/matrix_includes.yml
+      - .github/patches/*
+      - .github/workflows/update-snapshots.yml
 
 permissions:
   packages: write
