@@ -86,7 +86,6 @@ runs:
         echo $(cd m-ci/vendor/bin; pwd) >> $GITHUB_PATH
         END_TS=$(date +%s)
         echo "Add moodle-plugin-ci binaries to PATH took $((END_TS - START_TS))s"
-        moodle-plugin-ci version
       shell: bash
 
     - name: Generate en_AU locale
@@ -159,4 +158,8 @@ runs:
 
         echo "MOODLE_DIR=$GITHUB_WORKSPACE/moodle" >> "$GITHUB_ENV"
         echo "PLUGIN_DIR=$PLUGIN_PATH" >> "$GITHUB_ENV"
+    - name: Debug Info
+      shell: bash
+      run: |
+        moodle-plugin-ci --version
 
