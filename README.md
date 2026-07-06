@@ -62,7 +62,7 @@ For how to set up the secret, please see the [_How does this automate releases_]
 You can add extra options to disable checks that you might not want, or to add additional dependencies under the `with` field. For example:
 ```yaml
     with:
-      disable_behat: true
+  enable_behat: false
       disable_grunt: true
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 ```
@@ -76,7 +76,8 @@ Below lists the available inputs which are _all optional_:
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | codechecker_max_warnings | To fail on warnings, set this to 0                                                                                                                                                       |
 | extra_plugin_runners     | Command to install more dependencies                                                                                                                                                     |
-| disable_behat            | Set `true` to disable behat tests.                                                                                                                                                       |
+| enable_behat             | Set `false` to disable behat tests. Defaults to `true`.                                                                                                                                  |
+| disable_behat            | Deprecated. Legacy behat toggle. If set, a deprecation warning is emitted. Behat only runs when `enable_behat` is `true` and `disable_behat` is missing/`false`.                      |
 | disable_phpdoc           | Set `true` to disable phpdoc tests.                                                                                                                                                      |
 | disable_phpcs            | Set `true` to disable phpcs (codechecker) tests.                                                                                                                                         |
 | disable_phplint          | Set `true` to disable phplint tests.                                                                                                                                                     |

@@ -27,6 +27,23 @@ function output(string $name, string $value) {
     echo PHP_EOL;
 }
 
+/**
+ * Parse an environment flag into a boolean.
+ */
+function env_flag_true(string $name, bool $default = false): bool {
+    if (!array_key_exists($name, $_SERVER)) {
+        return $default;
+    }
+
+    $value = trim((string)$_SERVER[$name]);
+    if ($value === '') {
+        return $default;
+    }
+
+    $normalized = strtolower($value);
+    return !in_array($normalized, ['0', 'false', 'no', 'off'], true);
+}
+
 // Greet the user.
 echo "Hello from PHP!";
 $workspace = $_SERVER['GITHUB_WORKSPACE'] ?? '';
@@ -215,8 +232,16 @@ $jsonMatrix = json_encode(['include' => $finalMatrix], JSON_UNESCAPED_SLASHES);
 output('matrix', $jsonMatrix);
 
 // When behat or phpunit is disabled, output an empty matrix so no jobs appear in the UI at all.
-$disableBehat = !empty($_SERVER['disable_behat']) && $_SERVER['disable_behat'] !== 'false';
-$behatMatrix = $disableBehat ? json_encode(['include' => []], JSON_UNESCAPED_SLASHES) : $jsonMatrix;
+$enableBehat = env_flag_true('enable_behat', true);
+$disableBehat = env_flag_true('disable_behat', false);
+$disableBehatSet = env_flag_true('disable_behat_set', false);
+
+if ($disableBehatSet) {
+    echo "::warning::Input 'disable_behat' is deprecated and will be removed in a future release. Use 'enable_behat' instead." . PHP_EOL;
+}
+
+$runBehat = $enableBehat && !$disableBehat;
+$behatMatrix = $runBehat ? $jsonMatrix : json_encode(['include' => []], JSON_UNESCAPED_SLASHES);
 output('behat_matrix', $behatMatrix);
 
 $disablePhpunit = !empty($_SERVER['disable_phpunit']) && $_SERVER['disable_phpunit'] !== 'false';

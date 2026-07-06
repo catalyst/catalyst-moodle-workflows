@@ -1,0 +1,569 @@
+# .github/workflows/ci.yml
+name: ci
+
+on:
+  workflow_call:
+    inputs:
+      internal_workflow_branch:
+        type: string
+        description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
+        default: 'main'
+      codechecker_max_warnings:
+        type: string
+        description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
+        default: '-1'
+      extra_php_extensions:
+        type: string
+      extra_plugin_runners:
+        type: string
+      enable_behat:
+        type: boolean
+        default: true
+      disable_behat:
+        type: boolean
+      disable_behat_set:
+        type: boolean
+        default: false
+      release_branches:
+        description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
+        type: string
+      moodle_branches:
+        description: 'Specify the MOODLE_XX_STABLE branch you want to test against'
+        type: string
+      min_php:
+        description: 'Specify the minimum version of PHP to test against. Will exclude workflows using older versions of PHP.'
+        type: string
+        default: '7.4'
+      ignore_paths:
+        description: 'Specify custom paths for CI to ignore. Third party libraries are ignored by default.'
+        type: string
+        default: ''
+      concurrent_skipping:
+        description: 'Skip a workflow run if the same workflow is already running. See: https://github.com/fkirc/skip-duplicate-actions?tab=readme-ov-file#concurrent_skipping'
+        type: string
+        default: 'same_content_newer'
+    secrets:
+      moodle_org_token:
+        required: false
+
+jobs:
+  pre_job:
+   name: check if job needs to run
+   runs-on: ubuntu-latest
+   # Map a step output to a job output
+   outputs:
+     should_skip: ${{ steps.eligibility.outputs.should_skip }}
+   steps:
+     - id: eligibility
+       name: Check branch/event eligibility
+       env:
+         EVENT_NAME: ${{ github.event_name }}
+         REF_PROTECTED: ${{ github.ref_protected }}
+       run: |
+         should_skip=true
+
+         if [[ "${EVENT_NAME}" == "pull_request" || ( "${EVENT_NAME}" == "push" && "${REF_PROTECTED}" == "true" ) ]]; then
+           should_skip=false
+         fi
+
+         echo "should_skip=${should_skip}" >> "${GITHUB_OUTPUT}"
+  prepare_matrix:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    name: prepare test matrix
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.moodle_branches }}-${{ inputs.extra_plugin_runners }}
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    outputs:
+      matrix: ${{ steps.parse-version.outputs.matrix }}
+      behat_matrix: ${{ steps.parse-version.outputs.behat_matrix }}
+      phpunit_matrix: ${{ steps.parse-version.outputs.phpunit_matrix }}
+      component: ${{ steps.parse-version.outputs.component }}
+      highest_moodle_branch: ${{ steps.parse-version.outputs.highest_moodle_branch }}
+      latest_container: ${{ steps.parse-version.outputs.latest_container }}
+      latest_pgsql_ver: ${{ steps.parse-version.outputs.latest_pgsql_ver }}
+      highest_php: ${{ steps.parse-version.outputs.highest_php }}
+      highest_node: ${{ steps.parse-version.outputs.highest_node }}
+      lowest_php: ${{ steps.parse-version.outputs.lowest_php }}
+      release_required: ${{ (
+          contains(github.event_name, 'push') &&
+          steps.check-version.outputs.any_changed == 'true' &&
+          steps.check-branch.outputs.publishable == 'true'
+        ) }}
+    steps:
+      - name: Check if currently on a publishable branch
+        id: check-branch
+        run: |
+          publishable=${{ github.event.repository.fork == false &&
+          (
+            (startsWith(github.ref, 'refs/heads/MOODLE_') &&
+            endsWith(github.ref, '_STABLE')) ||
+            github.ref == 'refs/heads/main' || (
+              inputs.release_branches != '' &&
+              endsWith(github.ref, inputs.release_branches)
+            )
+          ) }}
+
+          echo "::set-output name=publishable::$publishable"
+      - uses: actions/checkout@v3
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          # Needed for 'changed-files' actions (alternatively could be a fixed
+          # large number but may cause issues if limited).
+          fetch-depth: 20
+          path: plugin
+          submodules: true
+      - name: Check if release is required (version.php changes)
+        if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
+        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
+        id: check-version
+        with:
+          path: plugin
+          files: |
+            version.php
+          since_last_remote_commit: "true"
+      - name: Install PHP
+        uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
+        with:
+          php-version: '8.1'
+          coverage: none
+          # extensions: yaml # FYI: makes the workflow very slow
+      - name: Determine test requirements and plugin info
+        id: parse-version
+        run: |
+          chmod +x "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
+          "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/script.sh"
+        env:
+          enable_behat: ${{ inputs.enable_behat }}
+          disable_behat: ${{ inputs.disable_behat }}
+          disable_behat_set: ${{ inputs.disable_behat_set || github.event.inputs.disable_behat != '' }}
+          filter: ${{ inputs.moodle_branches }}
+          min_php: ${{ inputs.min_php }}
+
+  version_bump_check:
+    name: Enforce version bump on PRs
+    needs: pre_job
+    if: |
+      needs.pre_job.outputs.should_skip != 'true' &&
+      github.event_name == 'pull_request' &&
+      startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Fetch PR base and head commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          git fetch --no-tags --depth=1 origin "${HEAD_SHA}"
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Validate plugin version bump
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          php <<'PHP'
+          <?php
+          $baseSha = getenv('BASE_SHA');
+          $headSha = getenv('HEAD_SHA');
+
+          if (!$baseSha || !$headSha) {
+              fwrite(STDERR, "Missing BASE_SHA or HEAD_SHA.\n");
+              exit(1);
+          }
+
+            function load_version_from_sha(string $sha, bool $allowFloat): string {
+              $target = escapeshellarg($sha . ':version.php');
+                $outputLines = [];
+                $exitCode = 0;
+                exec("git show {$target} 2>&1", $outputLines, $exitCode);
+
+                if ($exitCode !== 0) {
+                  $outputText = trim(implode("\n", $outputLines));
+                  fwrite(STDERR, "Failed to read version.php for commit {$sha} (git show exit code {$exitCode}).\n");
+                  if ($outputText !== '') {
+                    fwrite(STDERR, "git show output:\n{$outputText}\n");
+                  }
+                  exit(1);
+              }
+
+                $content = implode("\n", $outputLines);
+
+                $pattern = $allowFloat
+                  ? '/\\$plugin->version\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*;/'
+                  : '/\\$plugin->version\\s*=\\s*([0-9]+)\\s*;/';
+
+                if (!preg_match($pattern, $content, $matches)) {
+                  $expectedType = $allowFloat ? 'numeric (int or float)' : 'integer';
+                  fwrite(STDERR, "Could not find {$expectedType} \\$plugin->version in version.php at commit {$sha}.\n");
+                  exit(1);
+              }
+
+              return $matches[1];
+          }
+
+              $baseVersion = load_version_from_sha($baseSha, true);
+              $headVersion = load_version_from_sha($headSha, false);
+
+          echo "Base branch version: {$baseVersion}\n";
+          echo "Feature branch version: {$headVersion}\n";
+
+          $baseVersionFloat = (float)$baseVersion;
+          $headVersionFloat = (float)$headVersion;
+          $bump = $headVersionFloat - $baseVersionFloat;
+
+          if ($bump <= 0.0) {
+              echo "::error file=version.php::version.php must include a version bump in pull requests.\n";
+              exit(1);
+          }
+
+          if ($bump > 1.0) {
+              echo sprintf("::error file=version.php::version bump must be <= 1 (computed bump was %.10f).\n", $bump);
+              exit(1);
+          }
+
+          echo sprintf("Computed bump: %.10f\n", $bump);
+          PHP
+
+          echo "Version bump check passed."
+        shell: bash
+
+  plugin_ci:
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    needs: prepare_matrix
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+
+      - name: Run plugin setup (canonical)
+        id: setup
+        continue-on-error: true
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ needs.prepare_matrix.outputs.highest_php }}
+          node: ${{ needs.prepare_matrix.outputs.highest_node }}
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ needs.prepare_matrix.outputs.highest_moodle_branch }}
+
+      - name: Run validate
+        id: validate
+        continue-on-error: true
+        run: moodle-plugin-ci validate
+        shell: bash
+
+      - name: Run codechecker
+        id: codechecker
+        continue-on-error: true
+        run: moodle-plugin-ci codechecker --max-warnings=${{ inputs.codechecker_max_warnings }} ./plugin
+        shell: bash
+
+      - name: Install PHPCompatibility
+        id: install_phpcompat
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/phpcompat
+          printf '{"name":"tmp/phpcompat","minimum-stability":"dev","prefer-stable":true,"config":{"allow-plugins":{"dealerdirect/phpcodesniffer-composer-installer":true}}}' \
+            > /tmp/phpcompat/composer.json
+          composer --working-dir=/tmp/phpcompat require \
+            phpcompatibility/php-compatibility:"dev-develop as 10.0.0" \
+            dealerdirect/phpcodesniffer-composer-installer
+
+      - name: Run PHP Compatibility check
+        id: phpcompat
+        continue-on-error: true
+        run: |
+          ignore="vendor,node_modules"
+          if [ -n "${{ inputs.ignore_paths }}" ]; then
+            ignore="$ignore,${{ inputs.ignore_paths }}"
+          fi
+          /tmp/phpcompat/vendor/bin/phpcs --standard=PHPCompatibility --runtime-set testVersion ${{ needs.prepare_matrix.outputs.lowest_php || inputs.min_php }} --ignore=$ignore ./plugin
+        shell: bash
+
+      - name: Run phplint
+        id: phplint
+        continue-on-error: true
+        run: moodle-plugin-ci phplint ./plugin
+        shell: bash
+
+      - name: Run savepoints
+        id: savepoints
+        continue-on-error: true
+        run: moodle-plugin-ci savepoints ./plugin
+        shell: bash
+
+      - name: Run mustache
+        id: mustache
+        continue-on-error: true
+        run: moodle-plugin-ci mustache
+        shell: bash
+
+      - name: Install Moodle node dependencies
+        id: npm_install
+        continue-on-error: true
+        run: npm install --prefix $MOODLE_DIR
+        shell: bash
+
+      - name: Run grunt
+        id: grunt
+        continue-on-error: true
+        run: |
+          moodle-plugin-ci grunt
+        shell: bash
+
+      - name: Run phpmd
+        id: phpmd
+        continue-on-error: true
+        run: moodle-plugin-ci phpmd ./plugin
+        shell: bash
+
+      - name: Run phpdoc
+        id: phpdoc
+        continue-on-error: true
+        run: |
+          set +e
+          output=`GITHUB_PATH=$GITHUB_PATH moodle-plugin-ci phpdoc ./plugin`
+          haserrors=$?
+          if [[ $haserrors -eq 0 ]]; then
+            echo "phpdoc checks - OK"
+            exit 0
+          fi
+          output=`echo "$output" | grep -v 'Class ( is not documented' | grep -v 'Could not connect to debugging client.'`
+          output=`echo "$output" | grep -B1 'Line'`
+          currentdir=$(pwd)
+          if [[ "$output" ]]; then
+            echo "$output" | sed -e "s,$currentdir/,,g" | sed -e "s,^moodle/,,g" | tee $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "phpdoc checks - OK"
+        shell: bash
+
+      - name: Fail job if any plugin_ci step failed
+        if: ${{ always() }}
+        run: |
+          failed=0
+
+          for outcome in \
+            "${{ steps.setup.outcome }}" \
+            "${{ steps.validate.outcome }}" \
+            "${{ steps.codechecker.outcome }}" \
+            "${{ steps.install_phpcompat.outcome }}" \
+            "${{ steps.phpcompat.outcome }}" \
+            "${{ steps.phplint.outcome }}" \
+            "${{ steps.savepoints.outcome }}" \
+            "${{ steps.mustache.outcome }}" \
+            "${{ steps.npm_install.outcome }}" \
+            "${{ steps.grunt.outcome }}" \
+            "${{ steps.phpmd.outcome }}" \
+            "${{ steps.phpdoc.outcome }}"
+          do
+            if [[ "$outcome" == "failure" ]]; then
+              failed=1
+              break
+            fi
+          done
+
+          if [[ "$failed" -eq 1 ]]; then
+            echo "One or more plugin_ci checks failed."
+            exit 1
+          fi
+  phpunit:
+    name: ${{ matrix.moodle-branch-short }} - phpunit - php${{ matrix.php }} - ${{ matrix.database }}
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true' && fromJson(needs.prepare_matrix.outputs.phpunit_matrix).include[0] != null
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.phpunit_matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-phpunit
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    services:
+      postgres:
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Tune PostgreSQL for CI speed
+        if: matrix.database == 'pgsql'
+        run: |
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET fsync = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET synchronous_commit = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET full_page_writes = off"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET checkpoint_completion_target = 0.9"
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET max_wal_size = '1GB'"
+          psql -h 127.0.0.1 -U postgres -c "SELECT pg_reload_conf()"
+      - name: Run plugin setup
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ matrix.php }}
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+          database: ${{ matrix.database }}
+      - name: Create database and restore PHPUnit snapshot
+        run: |
+          START_TS=$(date +%s)
+
+          # Extract phpunit snapshot zip from the image — fail if missing.
+          CID=$(docker create "$SNAPSHOT_IMAGE")
+          docker cp "$CID:/phpunit-snapshot.zip" ./phpunit-snapshot.zip
+          docker rm "$CID"
+
+          # Create the Moodle database.
+          if [ "${{ matrix.database }}" = "pgsql" ]; then
+            psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
+            psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
+          else
+            mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          fi
+
+          # phpunit_dataroot is always $GITHUB_WORKSPACE/moodledata/phpunit per the config template.
+          PHPUNIT_DATAROOT="$GITHUB_WORKSPACE/moodledata/phpunit"
+          mkdir -p "$PHPUNIT_DATAROOT"
+          cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
+
+          # Detect phpunit util location (differs between classic and public/ layouts).
+          if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php"
+          elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php" ]; then
+            PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php"
+          else
+            echo "Could not locate phpunit util.php"
+            exit 1
+          fi
+
+          php "$PHPUNIT_UTIL" --restore=ci-phpunit
+          php "$PHPUNIT_UTIL" --upgrade
+          php "$PHPUNIT_UTIL" --buildconfig
+
+          END_TS=$(date +%s)
+          echo "Create database and restore PHPUnit snapshot took $((END_TS - START_TS))s"
+        shell: bash
+      - name: Run phpunit
+        working-directory: moodle
+        run: |
+          echo "::group::Plugin unit tests"
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite ${{ needs.prepare_matrix.outputs.component }}_testsuite
+          echo "::endgroup::"
+          echo "::group::Privacy unit tests"
+          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter thirdparty_providers_compliant
+          echo "::endgroup::"
+        shell: bash
+  behat:
+    name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
+    needs: prepare_matrix
+    if: needs.pre_job.outputs.should_skip != 'true' && fromJson(needs.prepare_matrix.outputs.behat_matrix).include[0] != null
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.behat_matrix) }}
+    env:
+      IGNORE_PATHS: tests/fixtures
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.moodle-branch }}-${{ matrix.database }}-${{ matrix.php }}-${{ needs.prepare_matrix.outputs.component }}-behat
+      cancel-in-progress: true
+    runs-on: 'ubuntu-latest'
+    services:
+      postgres:
+        image: ${{ matrix.pgsql-ver && format('postgres:{0}', matrix.pgsql-ver) || '' }}
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+        ports:
+          - 5432:5432
+      mariadb:
+        image: ${{ matrix.mariadb-ver && format('mariadb:{0}', matrix.mariadb-ver) || '' }}
+        env:
+          MYSQL_USER: 'root'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+          MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+          MYSQL_COLLATION_SERVER: "utf8mb4_unicode_ci"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    steps:
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+      - name: Run plugin setup
+        uses: ./ci/.github/plugin/setup
+        with:
+          php: ${{ matrix.php }}
+          node: ${{ matrix.node }}
+          extra_php_extensions: ${{ inputs.extra_php_extensions }}
+          extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
+          moodle_branch: ${{ matrix.moodle-branch }}
+          database: ${{ matrix.database }}
+      - name: Run behat
+        run: moodle-plugin-ci behat --profile chrome
+        shell: bash
