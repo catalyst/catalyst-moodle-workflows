@@ -143,11 +143,11 @@ jobs:
           token: ${{ github.token }}
       - name: Fetch latest Moodle updates cache
         run: |
-          # Download the weekly-refreshed cache from the moodle-directory-api-cache branch.
+          # Download the weekly-refreshed cache from the caches branch.
           # Trigger a manual refresh at:
           # https://github.com/catalyst/catalyst-moodle-workflows/actions/workflows/refresh-moodle-updates-cache.yml
           curl -sSf \
-            "https://raw.githubusercontent.com/catalyst/catalyst-moodle-workflows/moodle-directory-api-cache/moodle-updates-cache.json" \
+            "https://raw.githubusercontent.com/catalyst/catalyst-moodle-workflows/caches/moodle-updates-cache.json" \
             -o "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/moodle-updates-cache.json"
       - name: Check out plugin code
         uses: actions/checkout@v3

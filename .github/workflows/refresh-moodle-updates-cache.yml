@@ -1,6 +1,6 @@
 # Refreshes the cached Moodle updates API response weekly.
 #
-# The response is stored on the moodle-directory-api-cache branch and downloaded
+# The response is stored on the caches branch and downloaded
 # by ci.yml before each parse-version run, instead of hitting
 # https://download.moodle.org/api/1.3/updates.php directly on every CI run.
 # This eliminates org-wide hammering of the upstream API which is flaky and
@@ -37,13 +37,13 @@ jobs:
           python3 -m json.tool /tmp/moodle-updates-cache.raw > /tmp/moodle-updates-cache.json
           echo "Fetched $(wc -c < /tmp/moodle-updates-cache.json) bytes (HTTP $HTTP_CODE)"
 
-      - name: Push cache to moodle-directory-api-cache branch
+      - name: Push cache to caches branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           REPO="${{ github.repository }}"
-          BRANCH="moodle-directory-api-cache"
+          BRANCH="caches"
           FILE_PATH="moodle-updates-cache.json"
 
           # Create the branch from main if it doesn't exist yet
