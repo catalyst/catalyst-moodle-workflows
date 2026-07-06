@@ -59,11 +59,11 @@ jobs:
 ```
 For how to set up the secret, please see the [_How does this automate releases_](#how-does-this-automate-releases) section below.
 
-You can add extra options to disable checks that you might not want, or to add additional dependencies under the `with` field. For example:
+You can add extra options (for example branch selection, PHP floor, or additional dependencies) under the `with` field. For example:
 ```yaml
     with:
-      disable_behat: true
-      disable_grunt: true
+  enable_behat: false
+  moodle_branches: MOODLE_404_STABLE
       extra_plugin_runners: 'moodle-plugin-ci add-plugin catalyst/moodle-local_aws'
 ```
 
@@ -74,24 +74,17 @@ Below lists the available inputs which are _all optional_:
 
 | Inputs                   | Description                                                                                                                                                                              |
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| internal_workflow_branch | Sets the branch used when this workflow checks out catalyst/catalyst-moodle-workflows internals. Defaults to `main`.                                                                  |
 | codechecker_max_warnings | To fail on warnings, set this to 0                                                                                                                                                       |
+| extra_php_extensions     | Extra PHP extensions passed into plugin setup.                                                                                                                                           |
 | extra_plugin_runners     | Command to install more dependencies                                                                                                                                                     |
-| disable_behat            | Set `true` to disable behat tests.                                                                                                                                                       |
-| disable_phpdoc           | Set `true` to disable phpdoc tests.                                                                                                                                                      |
-| disable_phpcs            | Set `true` to disable phpcs (codechecker) tests.                                                                                                                                         |
-| disable_phplint          | Set `true` to disable phplint tests.                                                                                                                                                     |
-| disable_phpunit          | Set `true` to disable phpunit tests.                                                                                                                                                     |
-| disable_grunt            | Set `true` to disable grunt.                                                                                                                                                             |
-| disable_mustache         | Set `true` to disable mustache.                                                                                                                                                          |
-| disable_master           | If `true`, this will skip testing against moodle/master branch                                                                                                                           |
-| disable_release          | If `true`, this will skip the release job                                                                                                                                                     |
-| disable_ci_validate      | If `true`, this will skip moodle-plugin-ci validate checks                                                                                                                               |
-| disable_version_bump_check | If `true`, this will skip pull-request version bump enforcement checks                                                                                                                   |
-| enable_phpmd             | If `true`, to enable phpmd                                                                                                                                                               |
+| enable_behat             | Set `false` to disable behat tests. Defaults to `true`.                                                                                                                                  |
+| disable_behat            | Deprecated. Legacy behat toggle. If set, a deprecation warning is emitted. Behat only runs when `enable_behat` is `true` and `disable_behat` is missing/`false`.                      |
 | release_branches         | Name of the non-standardly named branch which should run the release job                                                                                                                 |
 | moodle_branches          | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range.                              |
 | min_php                  | The minimum php version to test. Set this to support the minimum php version supported by the plugin. Defaults to '7.4', however more recent Moodle branches only test higher versions.  |
 | ignore_paths             | Specify custom paths for CI to ignore. Third party libraries are ignored by default. |
+| concurrent_skipping      | Configure skip-duplicate-actions behavior for PR runs. Defaults to `same_content_newer`.                                                                                                |
 
 ### Running with dependencies
 If you'd require to run your workflow against specific versions of a plugin you depend on, then you can specify a branch you'd like to run each job against. Like following:   
@@ -101,7 +94,6 @@ jobs:
   moodle41:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
     with:
-      disable_phpunit: true
       moodle_branches: MOODLE_401_STABLE
       extra_plugin_runners:
         moodle-plugin-ci add-plugin danmarsden/moodle-mod_attendance --branch MOODLE_401_STABLE
@@ -109,7 +101,6 @@ jobs:
   moodle42:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
     with:
-      disable_phpunit: true
       moodle_branches: MOODLE_402_STABLE
       extra_plugin_runners:
         moodle-plugin-ci add-plugin danmarsden/moodle-mod_attendance --branch MOODLE_402_STABLE

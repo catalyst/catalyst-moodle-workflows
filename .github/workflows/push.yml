@@ -1,0 +1,135 @@
+name: push
+
+on:
+  workflow_call:
+    inputs:
+      internal_workflow_branch:
+        type: string
+        description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
+        default: 'main'
+      release_branches:
+        description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
+        type: string
+      moodle_branches:
+        description: 'Specify the MOODLE_XX_STABLE branch you want to test against'
+        type: string
+      min_php:
+        description: 'Specify the minimum version of PHP to test against. Will exclude workflows using older versions of PHP.'
+        type: string
+        default: '7.4'
+    secrets:
+      moodle_org_token:
+        required: false
+
+jobs:
+  pre_job:
+    name: check if push release should run
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.eligibility.outputs.should_skip }}
+    steps:
+      - id: eligibility
+        name: Check branch/event eligibility
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          should_skip=true
+
+          if [[ "${EVENT_NAME}" == "push" && "${REF_PROTECTED}" == "true" ]]; then
+            should_skip=false
+          fi
+
+          echo "should_skip=${should_skip}" >> "${GITHUB_OUTPUT}"
+
+  prepare_matrix:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    name: prepare release matrix
+    runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.component.outputs.component }}
+      release_required: ${{ (
+          contains(github.event_name, 'push') &&
+          steps.check-version.outputs.any_changed == 'true' &&
+          steps.check-branch.outputs.publishable == 'true'
+        ) }}
+    steps:
+      - name: Check if currently on a publishable branch
+        id: check-branch
+        run: |
+          publishable=${{ github.event.repository.fork == false &&
+          (
+            (startsWith(github.ref, 'refs/heads/MOODLE_') &&
+            endsWith(github.ref, '_STABLE')) ||
+            github.ref == 'refs/heads/main' || (
+              inputs.release_branches != '' &&
+              endsWith(github.ref, inputs.release_branches)
+            )
+          ) }}
+
+          echo "::set-output name=publishable::$publishable"
+      - uses: actions/checkout@v3
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 20
+          path: plugin
+          submodules: true
+      - name: Check if release is required (version.php changes)
+        if: contains(github.event_name, 'push') && steps.check-branch.outputs.publishable == 'true'
+        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
+        id: check-version
+        with:
+          path: plugin
+          files: |
+            version.php
+          since_last_remote_commit: "true"
+      - name: Determine plugin component
+        id: component
+        run: |
+          set -euo pipefail
+
+          component="$(grep -oP "\$plugin->component\s*=\s*'\K[^']+" plugin/version.php || true)"
+          if [[ -z "${component}" ]]; then
+            component="$(grep -oP "\$plugin->component\s*=\s*\"\K[^\"]+" plugin/version.php || true)"
+          fi
+
+          if [[ -z "${component}" ]]; then
+            echo "::error::Could not parse \$plugin->component from plugin/version.php"
+            exit 1
+          fi
+
+          echo "component=${component}" >> "${GITHUB_OUTPUT}"
+
+  release:
+    name: Release to the Moodle plugin directory
+    needs:
+      - pre_job
+      - prepare_matrix
+    if: |
+      needs.pre_job.outputs.should_skip != 'true' &&
+      needs.prepare_matrix.outputs.release_required == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if MOODLE_ORG_TOKEN has been supplied
+        id: check-secrets
+        env:
+          SECRET_TO_CHECK: '${{ secrets.moodle_org_token }}'
+        if: ${{ env.SECRET_TO_CHECK != '' }}
+        run: echo "::set-output name=has-secrets::true"
+
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: catalyst/catalyst-moodle-workflows
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
+
+      - name: Run plugin release
+        if: steps.check-secrets.outputs.has-secrets != ''
+        uses: ./ci/.github/plugin/release
+        with:
+          plugin_name: ${{ needs.prepare_matrix.outputs.component }}
+          moodle_org_token: ${{ secrets.moodle_org_token }}
