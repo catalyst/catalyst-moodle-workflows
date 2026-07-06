@@ -60,37 +60,18 @@ $matrix = Yaml::parse($matrixYaml);
 
 // Version breakpoints are sourced from:
 // https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=$lowestSupportedBranch
-$updatesUrl = 'https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8';
-$ch = curl_init($updatesUrl);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HEADER         => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_TIMEOUT        => 30,
-    CURLOPT_USERAGENT      => "MoodleBot/5.1 (+https://catalyst-au.net)",
-]);
-$rawResponse   = curl_exec($ch);
-$httpCode      = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$headerSize    = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-$curlError     = curl_error($ch);
-curl_close($ch);
-
-$responseHeaders = substr($rawResponse, 0, $headerSize);
-$updatesResponse = substr($rawResponse, $headerSize);
-
-if ($rawResponse === false || $curlError) {
-    echo "::error::Failed to fetch Moodle updates from $updatesUrl: $curlError\n";
+//
+// The response is cached weekly in moodle-updates-cache.json (committed to this repo and refreshed
+// by the refresh-moodle-updates-cache workflow) to avoid hammering the flaky upstream API.
+$cacheFile = __DIR__ . '/moodle-updates-cache.json';
+if (!file_exists($cacheFile)) {
+    echo "::error::Moodle updates cache file not found: $cacheFile — run the 'Refresh Moodle updates cache' workflow manually at https://github.com/catalyst/catalyst-moodle-workflows/actions/workflows/refresh-moodle-updates-cache.yml\n";
     exit(1);
 }
-if ($httpCode !== 200) {
-    echo "::error::Unexpected HTTP $httpCode fetching Moodle updates from $updatesUrl\n";
-    fwrite(STDERR, "Response headers:\n$responseHeaders\n");
-    exit(1);
-}
-$updates = json_decode($updatesResponse, true);
+$updatesJson = file_get_contents($cacheFile);
+$updates = json_decode($updatesJson, true);
 if (json_last_error() !== JSON_ERROR_NONE) {
     fwrite(STDERR, "Error: Failed to parse Moodle updates JSON: " . json_last_error_msg() . "\n");
-    fwrite(STDERR, "Response headers:\n$responseHeaders\n");
     exit(1);
 }
 $updates = $updates['updates']['core'] ?? [];
