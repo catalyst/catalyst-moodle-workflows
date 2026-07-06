@@ -1,7 +1,7 @@
 # Refreshes the cached Moodle updates API response weekly.
 #
-# The cache file (.github/actions/parse-version/moodle-updates-cache.json) is
-# committed to this repo and read by the parse-version action instead of hitting
+# The response is stored on the moodle-directory-api-cache branch and downloaded
+# by ci.yml before each parse-version run, instead of hitting
 # https://download.moodle.org/api/1.3/updates.php directly on every CI run.
 # This eliminates org-wide hammering of the upstream API which is flaky and
 # rate-limits consumers.
@@ -15,42 +15,60 @@ on:
 
 jobs:
   refresh:
-    name: Fetch and commit updated Moodle updates cache
+    name: Fetch and push updated Moodle updates cache
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
       - name: Fetch Moodle updates API
         run: |
           set -euo pipefail
           URL="https://download.moodle.org/api/1.3/updates.php?format=json&version=0.0&branch=3.8"
-          DEST=".github/actions/parse-version/moodle-updates-cache.json"
           HTTP_CODE=$(curl -sSL --max-time 30 \
             -A "MoodleBot/5.1 (+https://catalyst-au.net)" \
             -w "%{http_code}" \
-            -o "${DEST}.raw" \
+            -o /tmp/moodle-updates-cache.raw \
             "$URL")
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Unexpected HTTP $HTTP_CODE from $URL — keeping existing cache"
-            rm -f "${DEST}.raw"
+            echo "::error::Unexpected HTTP $HTTP_CODE from $URL"
             exit 1
           fi
           # Validate and pretty-print for nicer diffs
-          python3 -m json.tool "${DEST}.raw" > "$DEST"
-          rm "${DEST}.raw"
-          echo "Fetched $(wc -c < "$DEST") bytes (HTTP $HTTP_CODE)"
+          python3 -m json.tool /tmp/moodle-updates-cache.raw > /tmp/moodle-updates-cache.json
+          echo "Fetched $(wc -c < /tmp/moodle-updates-cache.json) bytes (HTTP $HTTP_CODE)"
 
-      - name: Commit updated cache if changed
+      - name: Push cache to moodle-directory-api-cache branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/actions/parse-version/moodle-updates-cache.json
-          if git diff --cached --quiet; then
-            echo "No changes to Moodle updates cache."
-          else
-            git commit -m "chore: refresh Moodle updates cache [skip ci]"
-            git push
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          BRANCH="moodle-directory-api-cache"
+          FILE_PATH=".github/actions/parse-version/moodle-updates-cache.json"
+
+          # Create the branch from main if it doesn't exist yet
+          if ! gh api "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null 2>&1; then
+            MAIN_SHA=$(gh api "repos/$REPO/git/refs/heads/main" --jq '.object.sha')
+            gh api "repos/$REPO/git/refs" --method POST \
+              -f ref="refs/heads/$BRANCH" \
+              -f sha="$MAIN_SHA"
+            echo "Created $BRANCH branch."
           fi
+
+          # The SHA of the existing file is required by the API to update it
+          EXISTING_SHA=$(gh api "repos/$REPO/contents/$FILE_PATH?ref=$BRANCH" --jq '.sha' 2>/dev/null || echo "")
+          CONTENT=$(base64 -w0 < /tmp/moodle-updates-cache.json)
+
+          if [ -n "$EXISTING_SHA" ]; then
+            gh api "repos/$REPO/contents/$FILE_PATH" --method PUT \
+              -f message="chore: refresh Moodle updates cache [skip ci]" \
+              -f content="$CONTENT" \
+              -f branch="$BRANCH" \
+              -f sha="$EXISTING_SHA"
+          else
+            gh api "repos/$REPO/contents/$FILE_PATH" --method PUT \
+              -f message="chore: refresh Moodle updates cache [skip ci]" \
+              -f content="$CONTENT" \
+              -f branch="$BRANCH"
+          fi
+          echo "Cache pushed to $BRANCH."
