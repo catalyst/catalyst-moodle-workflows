@@ -147,7 +147,7 @@ jobs:
           # Trigger a manual refresh at:
           # https://github.com/catalyst/catalyst-moodle-workflows/actions/workflows/refresh-moodle-updates-cache.yml
           curl -sSf \
-            "https://raw.githubusercontent.com/catalyst/catalyst-moodle-workflows/moodle-directory-api-cache/.github/actions/parse-version/moodle-updates-cache.json" \
+            "https://raw.githubusercontent.com/catalyst/catalyst-moodle-workflows/moodle-directory-api-cache/moodle-updates-cache.json" \
             -o "${GITHUB_WORKSPACE}/ci/.github/actions/parse-version/moodle-updates-cache.json"
       - name: Check out plugin code
         uses: actions/checkout@v3

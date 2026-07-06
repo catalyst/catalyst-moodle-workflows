@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           REPO="${{ github.repository }}"
           BRANCH="moodle-directory-api-cache"
-          FILE_PATH=".github/actions/parse-version/moodle-updates-cache.json"
+          FILE_PATH="moodle-updates-cache.json"
 
           # Create the branch from main if it doesn't exist yet
           if ! gh api "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null 2>&1; then
