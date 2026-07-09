@@ -1,30 +1,42 @@
-From 6bdbe047e859f83718c56333449f1ce2ca4e602a Mon Sep 17 00:00:00 2001
+From bdac4abfd48aea90af8e726eb47bbeb758870bca Mon Sep 17 00:00:00 2001
 From: Abhinav Gandham <abhinavgandham@catalyst-au.net>
-Date: Tue, 26 May 2026 17:26:32 +1000
-Subject: [PATCH] MDL-88495 Unit tests: Snapshot and restore for test site.
+Date: Thu, 9 Jul 2026 14:47:57 +1000
+Subject: [PATCH] MDL-88495 Unit tests: Implemented ability to upgrade test
+ site as well as snapshot and restore.
 
 ---
- public/admin/tool/phpunit/cli/util.php |  28 +-
+ public/admin/tool/phpunit/cli/util.php |  48 ++-
  public/lib/phpunit/bootstrap.php       |   2 +-
- public/lib/phpunit/classes/util.php    | 372 +++++++++++++++++++++++++
+ public/lib/phpunit/bootstraplib.php    |  10 +-
+ public/lib/phpunit/classes/util.php    | 415 +++++++++++++++++++++++++
  public/lib/testing/classes/util.php    |   7 +
- 4 files changed, 406 insertions(+), 3 deletions(-)
+ 5 files changed, 470 insertions(+), 12 deletions(-)
 
 diff --git a/public/admin/tool/phpunit/cli/util.php b/public/admin/tool/phpunit/cli/util.php
-index ff5eb956ddd..2ac4af73b74 100644
+index ff5eb956ddd..ffa25766a53 100644
 --- a/public/admin/tool/phpunit/cli/util.php
 +++ b/public/admin/tool/phpunit/cli/util.php
-@@ -47,6 +47,9 @@ list($options, $unrecognized) = cli_get_params(
+@@ -47,6 +47,10 @@ list($options, $unrecognized) = cli_get_params(
          'buildcomponentconfigs' => false,
          'diag'                  => false,
          'run'                   => false,
 +        'upgrade'               => false,
 +        'snapshot'              => '',
 +        'restore'               => '',
++        'list'                  => false,
          'help'                  => false,
      ],
      [
-@@ -102,8 +105,16 @@ $drop = $options['drop'];
+@@ -61,7 +65,7 @@ if (!file_exists(__DIR__.'/../../../../../vendor/phpunit/phpunit/composer.json')
+     phpunit_bootstrap_error(PHPUNIT_EXITCODE_PHPUNITMISSING);
+ }
+ 
+-if ($options['install'] || $options['drop']) {
++if ($options['install'] || $options['drop'] || $options['upgrade']) {
+     define('CACHE_DISABLE_ALL', true);
+ }
+ 
+@@ -102,18 +106,33 @@ $drop = $options['drop'];
  $install = $options['install'];
  $buildconfig = $options['buildconfig'];
  $buildcomponentconfigs = $options['buildcomponentconfigs'];
@@ -33,38 +45,54 @@ index ff5eb956ddd..2ac4af73b74 100644
 +$snapshot = $options['snapshot'];
 +$restore = $options['restore'];
 +$upgrade = $options['upgrade'];
++$list = $options['list'];
 +
 +if (
 +    $options['help'] || (
 +    !$drop && !$install && !$buildconfig && !$buildcomponentconfigs
-+    && !$diag && !$upgrade && !$snapshot && !$restore
-+                )
++    && !$diag && !$upgrade && !$snapshot && !$restore && !$list
++    )
 +) {
      $help = "Various PHPUnit utility functions
  
  Options:
-@@ -114,6 +125,10 @@ Options:
+---drop         Drop database and dataroot
+---install      Install database
+---diag         Diagnose installation and return error code only
+---run          Execute PHPUnit tests (alternative for standard phpunit binary)
  --buildconfig  Build /phpunit.xml from /phpunit.xml.dist that runs all tests
  --buildcomponentconfigs
                 Build distributed phpunit.xml files for each component
-+--upgrade      Upgrade test site to latest version
++--diag         Diagnose installation and return error code only
++--drop         Drop database and dataroot
++--install      Install database
++--restore=NAME Restore snapshot of test site with the specified name.
++--run          Execute PHPUnit tests (alternative for standard phpunit binary)
 +--snapshot     Create snapshot of the current test site. Optionally specify name of the snapshot with
 +               --snapshot=NAME.
-+--restore=NAME Restore snapshot of test site with the specified name.
++--snapshot --list
++               List all the available snapshots.
++--upgrade      Upgrade installed plugins in the test site.
  
  -h, --help     Print out this help
  
-@@ -155,4 +170,13 @@ if ($diag) {
+@@ -155,4 +174,19 @@ if ($diag) {
  } else if ($install) {
      phpunit_util::install_site();
      exit(0);
 +} else if ($upgrade) {
++    test_lock::acquire('phpunit');
 +    phpunit_util::upgrade_site();
 +    exit(0);
++} else if ($snapshot && $list) {
++    phpunit_util::list_snapshots();
++    exit(0);
 +} else if ($snapshot) {
++    test_lock::acquire('phpunit');
 +    phpunit_util::snapshot_site(is_string($snapshot) ? $snapshot : '');
 +    exit(0);
 +} else if ($restore) {
++    test_lock::acquire('phpunit');
 +    phpunit_util::restore_site(is_string($restore) ? $restore : '');
 +    exit(0);
  }
@@ -81,8 +109,31 @@ index 8916ad69765..60da5faee50 100644
                  continue;
              }
              phpunit_bootstrap_error(
+diff --git a/public/lib/phpunit/bootstraplib.php b/public/lib/phpunit/bootstraplib.php
+index 48c75dfa1dc..bf3112cf1f5 100644
+--- a/public/lib/phpunit/bootstraplib.php
++++ b/public/lib/phpunit/bootstraplib.php
+@@ -65,12 +65,14 @@ function phpunit_bootstrap_error($errorcode, $text = '') {
+             $text = "Moodle PHPUnit environment configuration warning:\n".$text;
+             break;
+         case PHPUNIT_EXITCODE_INSTALL:
+-            $path = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
+-            $text = "Moodle PHPUnit environment is not initialised, please use:\n php $path";
++            $initpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
++            $text = "Moodle PHPUnit environment is not initialised, please use:\n php $initpath";
+             break;
+         case PHPUNIT_EXITCODE_REINSTALL:
+-            $path = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
+-            $text = "Moodle PHPUnit environment was initialised for different version, please use:\n php $path";
++            $initpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/init.php');
++            $utilpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/util.php');
++            $text = "Moodle PHPUnit environment was initialised for different version, please use:\n"
++                . " php $initpath\n or php $utilpath --upgrade";
+             break;
+         default:
+             $text = empty($text) ? '' : ': '.$text;
 diff --git a/public/lib/phpunit/classes/util.php b/public/lib/phpunit/classes/util.php
-index fcc574117ae..7436abae5f6 100644
+index fcc574117ae..614ca6675c2 100644
 --- a/public/lib/phpunit/classes/util.php
 +++ b/public/lib/phpunit/classes/util.php
 @@ -454,6 +454,13 @@ class phpunit_util extends testing_util {
@@ -99,7 +150,7 @@ index fcc574117ae..7436abae5f6 100644
          self::reset_dataroot();
          testing_initdataroot($CFG->dataroot, 'phpunit');
  
-@@ -524,6 +531,371 @@ class phpunit_util extends testing_util {
+@@ -524,6 +531,414 @@ class phpunit_util extends testing_util {
          self::store_database_state();
      }
  
@@ -171,7 +222,9 @@ index fcc574117ae..7436abae5f6 100644
 +        $dirtozip = $dataroot . DIRECTORY_SEPARATOR . "$name";
 +
 +        $zip = new \ZipArchive();
-+        $zip->open("$dirtozip.zip", \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
++        if ($zip->open("$dirtozip.zip", \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
++            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Can not create snapshot zip $dirtozip.zip");
++        }
 +
 +        $files = new \RecursiveIteratorIterator(
 +            new \RecursiveDirectoryIterator($dirtozip, \RecursiveDirectoryIterator::SKIP_DOTS),
@@ -193,6 +246,35 @@ index fcc574117ae..7436abae5f6 100644
 +    }
 +
 +    /**
++     * List all available snapshots.
++     *
++     * @return void
++     */
++    public static function list_snapshots() {
++        $dataroot = self::get_dataroot();
++        $snapshots = [];
++
++        // Add each snapshot to the snapshots array.
++        foreach (scandir($dataroot) as $item) {
++            if (str_ends_with($item, '.zip')) {
++                $snapshots[] = $item;
++            }
++        }
++
++        if (empty($snapshots)) {
++            echo "No snapshots found in $dataroot\n";
++            return;
++        }
++
++        echo "Available snapshots:\n";
++
++        // Display each snapshot.
++        foreach ($snapshots as $snapshot) {
++            echo " - $snapshot\n";
++        }
++    }
++
++    /**
 +     * Restore the database and dataroot to the state they were in when snapshot_site() was called.
 +     *
 +     * @param string $snapshot The snapshot to restore.
@@ -208,7 +290,8 @@ index fcc574117ae..7436abae5f6 100644
 +        }
 +
 +        if (!empty($DB->get_tables())) {
-+            echo "Database tables are still present. Run php public/admin/tool/phpunit/cli/util.php --drop before restoring.\n";
++            $utilpath = testing_cli_argument_path('/public/admin/tool/phpunit/cli/util.php');
++            echo "Database tables are still present. Run php $utilpath --drop before restoring.\n";
 +            return;
 +        }
 +
@@ -274,7 +357,7 @@ index fcc574117ae..7436abae5f6 100644
 +        // Restore the database to snapshot state.
 +        self::reset_database();
 +
-+        echo "Data imported. Resetting datarooot...\n";
++        echo "Data imported. Resetting dataroot...\n";
 +
 +        // Clear current dataroot before restoring filedir from snapshot.
 +        static::$datarootskiponreset = ['.', '..', 'phpunittestdir.txt', 'phpunit', '.htaccess', $snapshot, "$snapshot.zip"];
@@ -301,13 +384,12 @@ index fcc574117ae..7436abae5f6 100644
 +        self::$lastdbwrites = $DB->perf_get_writes();
 +
 +        remove_dir($snapshotdir);
-+        unlink($zipfile);
 +
 +        echo "Snapshot successfully restored.\n";
 +    }
 +
 +    /**
-+     * Upgrade the test site and upgrade/install any new plugins that were added.
++     * Upgrade any installed plugins in the test site.
 +     *
 +     * @return void may terminate execution with exit code
 +     */
@@ -324,6 +406,18 @@ index fcc574117ae..7436abae5f6 100644
 +
 +        initialise_cfg();
 +        upgrade_noncore(true);
++
++        // Log in as admin - required for $hassiteconfig to be true, which is needed to apply plugin default settings.
++        \core\session\manager::set_user(get_admin());
++        admin_apply_default_settings(null, true);
++
++        // Disable all logging for performance and sanity reasons.
++        set_config('enabled_stores', '', 'tool_log');
++
++        // Remove any default blocked hosts and port restrictions, to avoid blocking tests (eg those using local files).
++        set_config('curlsecurityblockedhosts', '');
++        set_config('curlsecurityallowedport', '');
++
 +        set_config('upgraderunning', 0);
 +        self::store_versions_hash();
 +        self::store_database_state();
@@ -380,7 +474,7 @@ index fcc574117ae..7436abae5f6 100644
 +        if (!file_exists($structurefile)) {
 +            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Snapshot file $structurefile does not exist!!");
 +        }
-+        $tablestructure = unserialize(file_get_contents($structurefile));
++        $tablestructure = unserialize(file_get_contents($structurefile), ['allowed_classes' => [\database_column_info::class]]);
 +        if (!is_array($tablestructure)) {
 +            phpunit_bootstrap_error(PHPUNIT_EXITCODE_CONFIGERROR, "Invalid tablestructure.ser in snapshot $snapshotdir");
 +        }
@@ -491,3 +585,4 @@ index 3073cde3bf7..070adfa78ce 100644
       * @static
 -- 
 2.43.0
+
