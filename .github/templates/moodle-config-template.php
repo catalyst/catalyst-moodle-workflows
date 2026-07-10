@@ -28,6 +28,10 @@ $CFG->directorypermissions = 02777;
 $CFG->phpunit_prefix   = 'phpu_';
 $CFG->phpunit_dataroot = dirname(__DIR__) . '/moodledata/phpunit';
 
+$CFG->behat_prefix   = 'bht_';
+$CFG->behat_dataroot = dirname(__DIR__) . '/moodledata/behat';
+$CFG->behat_wwwroot  = 'http://localhost:8000';
+
 // Support both classic layout (lib/setup.php) and public/ layout (public/lib/setup.php).
 if (file_exists(__DIR__ . '/public/lib/setup.php')) {
     require_once(__DIR__ . '/public/lib/setup.php');
