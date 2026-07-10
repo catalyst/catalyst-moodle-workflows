@@ -680,6 +680,35 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
+      - name: Create database and initialise Behat test site
+        run: |
+          START_TS=$(date +%s)
+
+          # Create the Moodle database.
+          if [ "${{ matrix.database }}" = "pgsql" ]; then
+            psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
+            psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
+          else
+            mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          fi
+
+          mkdir -p "$GITHUB_WORKSPACE/moodledata/behat"
+
+          # Detect behat init script location (differs between classic and public/ layouts).
+          if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/behat/cli/init.php" ]; then
+            BEHAT_INIT="$GITHUB_WORKSPACE/moodle/public/admin/tool/behat/cli/init.php"
+          elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/behat/cli/init.php" ]; then
+            BEHAT_INIT="$GITHUB_WORKSPACE/moodle/admin/tool/behat/cli/init.php"
+          else
+            echo "Could not locate Moodle behat init script in moodle/ or moodle/public/."
+            exit 1
+          fi
+
+          php "$BEHAT_INIT"
+
+          END_TS=$(date +%s)
+          echo "Create database and initialise Behat test site took $((END_TS - START_TS))s"
+        shell: bash
       - name: Run behat
         run: moodle-plugin-ci behat --profile chrome
         shell: bash
