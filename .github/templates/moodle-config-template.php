@@ -32,6 +32,21 @@ $CFG->behat_prefix   = 'bht_';
 $CFG->behat_dataroot = dirname(__DIR__) . '/moodledata/behat';
 $CFG->behat_wwwroot  = 'http://localhost:8000';
 
+// Selenium runs with --network host, so it reaches behat_wwwroot via localhost too.
+$CFG->behat_profiles = [
+    'chrome' => [
+        'browser' => 'chrome',
+        'wd_host' => 'http://localhost:4444/wd/hub',
+        'capabilities' => [
+            'extra_capabilities' => [
+                'goog:chromeOptions' => [
+                    'args' => ['--headless=new', '--disable-gpu', '--window-size=1024,768'],
+                ],
+            ],
+        ],
+    ],
+];
+
 // Support both classic layout (lib/setup.php) and public/ layout (public/lib/setup.php).
 if (file_exists(__DIR__ . '/public/lib/setup.php')) {
     require_once(__DIR__ . '/public/lib/setup.php');
