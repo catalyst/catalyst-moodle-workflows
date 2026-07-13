@@ -671,6 +671,14 @@ jobs:
           repository: catalyst/catalyst-moodle-workflows
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
+      # Started manually (not via `services:`) because GitHub Actions always attaches
+      # service containers to its own bridge network, which conflicts with --network host.
+      # Host networking is required so Selenium can reach the Moodle dev server via
+      # localhost, the same way everything else in this job does.
+      - name: Start Selenium (chrome)
+        run: |
+          docker run -d --network host --shm-size=2g --name selenium selenium/standalone-chrome:127.0
+        shell: bash
       - name: Run plugin setup
         uses: ./ci/.github/plugin/setup
         with:
@@ -680,6 +688,19 @@ jobs:
           extra_plugin_runners: ${{ inputs.extra_plugin_runners }}
           moodle_branch: ${{ matrix.moodle-branch }}
           database: ${{ matrix.database }}
+      - name: Wait for Selenium to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4444/wd/hub/status | grep -q '"ready": *true'; then
+              echo "Selenium is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Selenium did not become ready in time"
+          docker logs selenium
+          exit 1
+        shell: bash
       - name: Create database and initialise Behat test site
         run: |
           START_TS=$(date +%s)
@@ -708,6 +729,34 @@ jobs:
 
           END_TS=$(date +%s)
           echo "Create database and initialise Behat test site took $((END_TS - START_TS))s"
+        shell: bash
+      # moodle-plugin-ci install normally starts this itself; since we bypass install
+      # for the behat site (see "Create database and initialise Behat test site" above),
+      # we need to start it ourselves too, bound to $CFG->behat_wwwroot from the config template.
+      - name: Start Moodle web server
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/moodle/public" ]; then
+            DOCROOT="$GITHUB_WORKSPACE/moodle/public"
+          else
+            DOCROOT="$GITHUB_WORKSPACE/moodle"
+          fi
+
+          php -S localhost:8000 -t "$DOCROOT" >/tmp/php-server.log 2>&1 &
+          echo "Started PHP dev server (pid $!) serving $DOCROOT on localhost:8000"
+
+          for i in $(seq 1 15); do
+            # No -f here: the main (non-behat) site was never installed, so this may
+            # legitimately return a non-2xx response. We only care that something is
+            # listening and answering HTTP at all.
+            if curl -s -o /dev/null http://localhost:8000; then
+              echo "Moodle web server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Moodle web server did not become ready in time"
+          cat /tmp/php-server.log
+          exit 1
         shell: bash
       - name: Run behat
         run: moodle-plugin-ci behat --profile chrome
