@@ -2,15 +2,15 @@
     "status": "OK",
     "provider": "https://download.moodle.org/api/1.3/updates.php",
     "apiver": "1.3",
-    "timegenerated": 1784515492,
-    "ticket": "JUM5JTkxJTYwJUY5JTNFJTgzLnklQjElOUQlOEIlREElQjIwJTE5JUIxSSVDRiVDQSVBRCUwMm8lOUR3dyVFQiVGOCUxOSUzQiVBNiUyQlUlRENCJTFCJTg1JTdCJThDJTg5TA==",
+    "timegenerated": 1785120111,
+    "ticket": "JUM5JTkxZSVGOGglODclN0YuJUU1JTlEJUQxJUQ0JUUyNkUlRTIlMTklQ0YlQzglQTNUYyU5RnMlMkElQkYlQThCJTNEJUFBJTdCJTVEJThBQyUxQiU4NSU3QiU4QyU4OUw=",
     "forbranch": "3.8",
     "forversion": "0.0",
     "updates": {
         "core": [
             {
-                "version": 2026042001.06,
-                "release": "5.2.1+ (Build: 20260714)",
+                "version": 2026042001.07,
+                "release": "5.2.1+ (Build: 20260722)",
                 "branch": "5.02",
                 "maturity": 200,
                 "date": 1780646722,
@@ -19,15 +19,15 @@
                 "norelease_index_info": {
                     "version": "5.2.1+",
                     "branch": "MOODLE_502_STABLE",
-                    "githash": "a4777d1",
-                    "date": 1784028787,
+                    "githash": "519caca",
+                    "date": 1784685996,
                     "zip": {
-                        "size": 143945468,
+                        "size": 143960992,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 89713503,
+                        "size": 89724459,
                         "md5": true,
                         "sha256": true
                     }
@@ -49,7 +49,7 @@
                     }
                 },
                 "windows": {
-                    "size": 285414819
+                    "size": 285430274
                 }
             },
             {
@@ -97,8 +97,8 @@
                 }
             },
             {
-                "version": 2025041408.05,
-                "release": "5.0.8+ (Build: 20260714)",
+                "version": 2025041408.06,
+                "release": "5.0.8+ (Build: 20260722)",
                 "branch": "5.00",
                 "maturity": 200,
                 "date": 1780646691,
@@ -107,15 +107,15 @@
                 "norelease_index_info": {
                     "version": "5.0.8+",
                     "branch": "MOODLE_500_STABLE",
-                    "githash": "552d557",
-                    "date": 1784028813,
+                    "githash": "fc1b950",
+                    "date": 1784686033,
                     "zip": {
-                        "size": 98293676,
+                        "size": 98296097,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 74991291,
+                        "size": 74995985,
                         "md5": true,
                         "sha256": true
                     }
@@ -137,7 +137,7 @@
                     }
                 },
                 "windows": {
-                    "size": 240901981
+                    "size": 240904377
                 }
             },
             {
@@ -273,8 +273,8 @@
                 }
             },
             {
-                "version": 2025100605.05,
-                "release": "5.1.5+ (Build: 20260714)",
+                "version": 2025100605.06,
+                "release": "5.1.5+ (Build: 20260722)",
                 "branch": "5.01",
                 "maturity": 200,
                 "date": 1780646731,
@@ -283,15 +283,15 @@
                 "norelease_index_info": {
                     "version": "5.1.5+",
                     "branch": "MOODLE_501_STABLE",
-                    "githash": "ea0bc52",
-                    "date": 1784028800,
+                    "githash": "eb03939",
+                    "date": 1784686014,
                     "zip": {
-                        "size": 99477242,
+                        "size": 99492741,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75333851,
+                        "size": 75353376,
                         "md5": true,
                         "sha256": true
                     }
@@ -313,7 +313,7 @@
                     }
                 },
                 "windows": {
-                    "size": 241142098
+                    "size": 241157536
                 }
             },
             {
@@ -449,8 +449,8 @@
                 }
             },
             {
-                "version": 2024100712.05,
-                "release": "4.5.12+ (Build: 20260714)",
+                "version": 2024100712.06,
+                "release": "4.5.12+ (Build: 20260722)",
                 "branch": "4.05",
                 "maturity": 200,
                 "date": 1780646700,
@@ -459,15 +459,15 @@
                 "norelease_index_info": {
                     "version": "4.5.12+",
                     "branch": "MOODLE_405_STABLE",
-                    "githash": "72261b4",
-                    "date": 1784028824,
+                    "githash": "25476c5",
+                    "date": 1784686049,
                     "zip": {
-                        "size": 98577201,
+                        "size": 98580396,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75109870,
+                        "size": 75109835,
                         "md5": true,
                         "sha256": true
                     }
@@ -489,7 +489,7 @@
                     }
                 },
                 "windows": {
-                    "size": 241198500
+                    "size": 241201694
                 }
             },
             {
@@ -581,31 +581,31 @@
                 }
             },
             {
-                "version": 2026071400,
-                "release": "5.3dev (Build: 20260714)",
+                "version": 2026072200,
+                "release": "5.3dev (Build: 20260722)",
                 "branch": "5.03",
                 "maturity": 50,
-                "date": 1784028774,
+                "date": 1784685978,
                 "url": "https://download.moodle.org",
                 "download": "https://download.moodle.org/download.php/direct/moodle/moodle-latest.zip",
                 "norelease_index_info": {
                     "version": "5.3dev",
                     "branch": "main",
-                    "githash": "23f47c2",
-                    "date": 1784028774,
+                    "githash": "dd5063e",
+                    "date": 1784685978,
                     "zip": {
-                        "size": 145193544,
+                        "size": 145213230,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 90579027,
+                        "size": 90605445,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 285282637
+                    "size": 285301739
                 }
             }
         ]
