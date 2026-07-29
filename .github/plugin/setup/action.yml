@@ -146,16 +146,32 @@ runs:
         TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
         NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
         TYPE_DIR=$(php -r "
-          define('IGNORE_COMPONENT_CACHE', true);
-          global \$CFG;
-          \$CFG = new stdClass();
-          \$CFG->dirroot = '$GITHUB_WORKSPACE/moodle';
-          \$CFG->admin = 'admin';
-          require_once(\$CFG->dirroot . '/lib/classes/component.php');
-          \$types = core_component::get_plugin_types();
+          \$moodle = '$GITHUB_WORKSPACE/moodle';
           \$type = '$TYPE';
-          if (!isset(\$types[\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
-          echo \$types[\$type];
+          \$comp = json_decode(file_get_contents(\"\$moodle/lib/components.json\"), true);
+          // Core plugin type - path is relative to moodle root.
+          if (isset(\$comp['plugintypes'][\$type])) {
+            echo \$moodle . '/' . \$comp['plugintypes'][\$type];
+            exit(0);
+          }
+          // Subplugin type: scan each plugin type directory for db/subplugins.json.
+          // In the restructured 5.1+ layout the web root is public/ but paths in
+          // components.json are still relative to the repo root, while paths in
+          // subplugins.json are relative to the web root (dirroot).
+          \$dirroot = is_dir(\"\$moodle/public\") ? \"\$moodle/public\" : \$moodle;
+          foreach (\$comp['plugintypes'] as \$ptype => \$pdir) {
+            \$abs_pdir = \"\$moodle/\$pdir\";
+            if (!is_dir(\$abs_pdir)) continue;
+            foreach (glob(\"\$abs_pdir/*/db/subplugins.json\") ?: [] as \$spfile) {
+              \$sp = json_decode(file_get_contents(\$spfile), true);
+              if (isset(\$sp['plugintypes'][\$type])) {
+                echo \$dirroot . '/' . \$sp['plugintypes'][\$type];
+                exit(0);
+              }
+            }
+          }
+          fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL);
+          exit(1);
         ")
         PLUGIN_PATH="$TYPE_DIR/$NAME"
         mkdir -p "$PLUGIN_PATH"
