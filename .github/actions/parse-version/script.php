@@ -197,6 +197,17 @@ output('matrix', $jsonMatrix);
 
 // When behat or phpunit is disabled, output an empty matrix so no jobs appear in the UI at all.
 $disableBehat = !empty($_SERVER['disable_behat']) && $_SERVER['disable_behat'] !== 'false';
+
+// Auto-detect: if disable_behat was not explicitly set, check whether the plugin
+// actually contains any Behat feature files. If none are found, skip the matrix.
+if (!$disableBehat) {
+    $featureFiles = glob("$workspace/plugin/tests/behat/*.feature");
+    if (empty($featureFiles)) {
+        echo "No Behat feature files found in tests/behat/ — skipping behat matrix automatically." . PHP_EOL;
+        $disableBehat = true;
+    }
+}
+
 $behatMatrix = $disableBehat ? json_encode(['include' => []], JSON_UNESCAPED_SLASHES) : $jsonMatrix;
 output('behat_matrix', $behatMatrix);
 
