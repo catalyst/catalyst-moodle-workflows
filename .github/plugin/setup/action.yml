@@ -146,12 +146,18 @@ runs:
         TYPE=$(echo "$COMPONENT" | cut -d_ -f1)
         NAME=$(echo "$COMPONENT" | cut -d_ -f2-)
         TYPE_DIR=$(php -r "
-          \$components = json_decode(file_get_contents('$GITHUB_WORKSPACE/moodle/lib/components.json'), true);
+          define('IGNORE_COMPONENT_CACHE', true);
+          global \$CFG;
+          \$CFG = new stdClass();
+          \$CFG->dirroot = '$GITHUB_WORKSPACE/moodle';
+          \$CFG->admin = 'admin';
+          require_once(\$CFG->dirroot . '/lib/classes/component.php');
+          \$types = core_component::get_plugin_types();
           \$type = '$TYPE';
-          if (!isset(\$components['plugintypes'][\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
-          echo \$components['plugintypes'][\$type];
+          if (!isset(\$types[\$type])) { fwrite(STDERR, 'Unknown plugin type: ' . \$type . PHP_EOL); exit(1); }
+          echo \$types[\$type];
         ")
-        PLUGIN_PATH="$GITHUB_WORKSPACE/moodle/$TYPE_DIR/$NAME"
+        PLUGIN_PATH="$TYPE_DIR/$NAME"
         mkdir -p "$PLUGIN_PATH"
         cp -r plugin/. "$PLUGIN_PATH/"
         rm -rf "$PLUGIN_PATH/.git"
