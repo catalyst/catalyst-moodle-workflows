@@ -41,6 +41,10 @@ on:
         description: 'If true, this will skip the release job'
         type: boolean
         default: false
+      enable_composer_publish:
+        description: 'If true, enables publishing plugin composer package on pushes to *_STABLE branches'
+        type: boolean
+        default: false
       enable_phpmd:
         type: boolean
         default: false
@@ -819,3 +823,15 @@ jobs:
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
+
+  composer_publish:
+    needs:
+      - release
+    if: |
+      needs.release.result == 'success' &&
+      inputs.enable_composer_publish == true
+    uses: ./.github/workflows/composer-publish.yml
+    secrets:
+      PACKETON_SERVER: ${{ secrets.PACKETON_SERVER }}
+      PACKETON_USERNAME: ${{ secrets.PACKETON_USERNAME }}
+      PACKETON_API_TOKEN: ${{ secrets.PACKETON_API_TOKEN }}

@@ -1,0 +1,54 @@
+name: composer-publish
+
+on:
+  workflow_call:
+    secrets:
+      PACKETON_SERVER:
+        required: true
+      PACKETON_USERNAME:
+        required: true
+      PACKETON_API_TOKEN:
+        required: true
+
+jobs:
+  publish_composer:
+    name: Publish Composer package
+    runs-on: ubuntu-latest
+    env:
+      PACKETON_SERVER: ${{ secrets.PACKETON_SERVER }}
+      PACKETON_USERNAME: ${{ secrets.PACKETON_USERNAME }}
+      PACKETON_API_TOKEN: ${{ secrets.PACKETON_API_TOKEN }}
+    steps:
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer
+        run: |
+          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+      - name: Configure Packeton auth
+        run: |
+          set -euo pipefail
+          packeton_host="$(echo "$PACKETON_SERVER" | sed -E 's|https?://([^/]+).*|\1|')"
+          composer global config --auth "http-basic.${packeton_host}" "$PACKETON_USERNAME" "$PACKETON_API_TOKEN"
+          composer global config repositories.packeton composer "$PACKETON_SERVER"
+
+      - name: Install composer-helper
+        run: composer global require catalyst-composer/composer-helper
+
+      - name: Publish plugin package
+        run: |
+          php <<'PHP'
+          <?php
+          require getenv('HOME') . '/.config/composer/vendor/autoload.php';
+          \Catalyst\ComposerHelper\CI::publishPlugin(getenv('GITHUB_WORKSPACE'));
+          PHP
