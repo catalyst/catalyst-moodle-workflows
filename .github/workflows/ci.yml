@@ -41,6 +41,10 @@ on:
         description: 'If true, this will skip the release job'
         type: boolean
         default: false
+      enable_composer_publish:
+        description: 'If true, enables publishing plugin composer package on pushes to *_STABLE branches'
+        type: boolean
+        default: false
       enable_phpmd:
         type: boolean
         default: false
@@ -819,3 +823,48 @@ jobs:
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
           moodle_org_token: ${{ secrets.moodle_org_token }}
+
+  composer_publish:
+    name: Trigger GitLab pipeline
+    needs:
+      - pre_job
+      - prepare_matrix
+      - phpunit
+      - behat
+      - codechecker
+      - phplint
+      - validate
+      - savepoints
+      - mustache
+      - grunt
+      - phpmd
+      - phpdoc
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.pre_job.outputs.should_skip != 'true' &&
+      needs.prepare_matrix.outputs.release_required == 'true' &&
+      inputs.enable_composer_publish == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Trigger GitLab pipeline
+        env:
+          COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
+          COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail \
+            --request POST \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "token=${COMPOSER_TRIGGER_TOKEN}" \
+            --data-urlencode "ref=main" \
+            --data-urlencode "variables[source_repo]=git@github.com:${GITHUB_REPOSITORY}.git" \
+            --data-urlencode "variables[source_commit]=${GITHUB_SHA}" \
+            "${COMPOSER_TRIGGER_URL}"
