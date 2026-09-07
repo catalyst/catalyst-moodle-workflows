@@ -74,7 +74,13 @@ on:
         type: string
         default: 'same_content_newer'
     secrets:
+      MOODLE_ORG_TOKEN:
+        required: false
       moodle_org_token:
+        required: false
+      COMPOSER_TRIGGER_URL:
+        required: false
+      COMPOSER_TRIGGER_TOKEN:
         required: false
 
 jobs:
@@ -780,6 +786,8 @@ jobs:
       - grunt
       - phpmd
       - phpdoc
+    env:
+      MOODLE_ORG_TOKEN: ${{ secrets.MOODLE_ORG_TOKEN || secrets.moodle_org_token }}
     # If it matches a standard branch naming convention, it should permit a
     # release to happen, otherwise this step should be skipped.
     # Patterns allowed:
@@ -805,7 +813,7 @@ jobs:
       - name: Check if MOODLE_ORG_TOKEN has been supplied
         id: check-secrets
         env:
-          SECRET_TO_CHECK: '${{ secrets.moodle_org_token }}'
+          SECRET_TO_CHECK: '${{ env.MOODLE_ORG_TOKEN }}'
         if: ${{ env.SECRET_TO_CHECK != '' }}
         run: echo "::set-output name=has-secrets::true"
 
@@ -822,7 +830,7 @@ jobs:
         uses: ./ci/.github/plugin/release
         with:
           plugin_name: ${{ needs.prepare_matrix.outputs.component }}
-          moodle_org_token: ${{ secrets.moodle_org_token }}
+          moodle_org_token: ${{ env.MOODLE_ORG_TOKEN }}
 
   composer_publish:
     name: Trigger GitLab pipeline
@@ -839,6 +847,9 @@ jobs:
       - grunt
       - phpmd
       - phpdoc
+    env:
+      COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
+      COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
@@ -855,9 +866,6 @@ jobs:
           submodules: true
 
       - name: Trigger GitLab pipeline
-        env:
-          COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
-          COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
         run: |
           set -euo pipefail
           curl --silent --show-error --fail \
