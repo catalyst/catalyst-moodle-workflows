@@ -826,10 +826,26 @@ jobs:
 
   composer_publish:
     needs:
-      - release
+      - pre_job
+      - prepare_matrix
+      - phpunit
+      - behat
+      - codechecker
+      - phplint
+      - validate
+      - savepoints
+      - mustache
+      - grunt
+      - phpmd
+      - phpdoc
     if: |
-      needs.release.result == 'success' &&
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.pre_job.outputs.should_skip != 'true' &&
+      needs.prepare_matrix.outputs.release_required == 'true' &&
       inputs.enable_composer_publish == true
     uses: ./.github/workflows/composer-publish.yml
     secrets:
-      GITLAB_AU_TRIGGER_TOKEN: ${{ secrets.GITLAB_AU_TRIGGER_TOKEN }}
+      TRIGGER_URL: ${{ secrets.TRIGGER_URL }}
+      TRIGGER_TOKEN: ${{ secrets.TRIGGER_TOKEN }}
