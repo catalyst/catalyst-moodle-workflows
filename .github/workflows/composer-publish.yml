@@ -3,9 +3,9 @@ name: composer-publish
 on:
   workflow_call:
     secrets:
-      TRIGGER_URL:
+      COMPOSER_TRIGGER_URL:
         required: true
-      TRIGGER_TOKEN:
+      COMPOSER_TRIGGER_TOKEN:
         required: true
 
 jobs:
@@ -21,15 +21,15 @@ jobs:
 
       - name: Trigger GitLab pipeline
         env:
-          TRIGGER_URL: ${{ secrets.TRIGGER_URL }}
-          TRIGGER_TOKEN: ${{ secrets.TRIGGER_TOKEN }}
+          COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
+          COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
         run: |
           set -euo pipefail
           curl --silent --show-error --fail \
             --request POST \
             --header "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "token=${TRIGGER_TOKEN}" \
+            --data-urlencode "token=${COMPOSER_TRIGGER_TOKEN}" \
             --data-urlencode "ref=main" \
             --data-urlencode "variables[source_repo]=git@github.com:${GITHUB_REPOSITORY}.git" \
             --data-urlencode "variables[source_commit]=${GITHUB_SHA}" \
-            "${TRIGGER_URL}"
+            "${COMPOSER_TRIGGER_URL}"

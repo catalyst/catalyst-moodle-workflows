@@ -847,5 +847,5 @@ jobs:
       inputs.enable_composer_publish == true
     uses: ./.github/workflows/composer-publish.yml
     secrets:
-      TRIGGER_URL: ${{ secrets.TRIGGER_URL }}
-      TRIGGER_TOKEN: ${{ secrets.TRIGGER_TOKEN }}
+      COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
+      COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
