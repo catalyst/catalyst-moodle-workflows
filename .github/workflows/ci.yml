@@ -825,6 +825,7 @@ jobs:
           moodle_org_token: ${{ secrets.moodle_org_token }}
 
   composer_publish:
+    name: Trigger GitLab pipeline
     needs:
       - pre_job
       - prepare_matrix
@@ -845,7 +846,25 @@ jobs:
       needs.pre_job.outputs.should_skip != 'true' &&
       needs.prepare_matrix.outputs.release_required == 'true' &&
       inputs.enable_composer_publish == true
-    uses: ./.github/workflows/composer-publish.yml
-    secrets:
-      COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
-      COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out plugin code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Trigger GitLab pipeline
+        env:
+          COMPOSER_TRIGGER_URL: ${{ secrets.COMPOSER_TRIGGER_URL }}
+          COMPOSER_TRIGGER_TOKEN: ${{ secrets.COMPOSER_TRIGGER_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail \
+            --request POST \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "token=${COMPOSER_TRIGGER_TOKEN}" \
+            --data-urlencode "ref=main" \
+            --data-urlencode "variables[source_repo]=git@github.com:${GITHUB_REPOSITORY}.git" \
+            --data-urlencode "variables[source_commit]=${GITHUB_SHA}" \
+            "${COMPOSER_TRIGGER_URL}"
