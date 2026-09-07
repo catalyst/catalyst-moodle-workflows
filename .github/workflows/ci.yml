@@ -832,6 +832,4 @@ jobs:
       inputs.enable_composer_publish == true
     uses: ./.github/workflows/composer-publish.yml
     secrets:
-      PACKETON_SERVER: ${{ secrets.PACKETON_SERVER }}
-      PACKETON_USERNAME: ${{ secrets.PACKETON_USERNAME }}
-      PACKETON_API_TOKEN: ${{ secrets.PACKETON_API_TOKEN }}
+      GITLAB_AU_TRIGGER_TOKEN: ${{ secrets.GITLAB_AU_TRIGGER_TOKEN }}
