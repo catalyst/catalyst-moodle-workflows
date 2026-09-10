@@ -48,6 +48,10 @@ on:
       enable_phpmd:
         type: boolean
         default: false
+      enable_release:
+        description: 'If true, this will allow the plugin to release to directory'
+        type: boolean
+        default: true
       disable_ci_validate:
         type: boolean
         default: false
@@ -801,7 +805,8 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.pre_job.outputs.should_skip != 'true' &&
-      needs.prepare_matrix.outputs.release_required == 'true'
+      needs.prepare_matrix.outputs.release_required == 'true' &&
+      inputs.enable_release == true
     runs-on: 'ubuntu-latest'
     outputs:
       has-secrets: ${{ steps.check-secrets.outputs.has-secrets }}
