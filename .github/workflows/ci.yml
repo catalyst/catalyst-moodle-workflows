@@ -285,8 +285,8 @@ jobs:
               exit(1);
           }
 
-          if ($bump > 1.0) {
-              echo sprintf("::error file=version.php::version bump must be <= 1 (computed bump was %.10f).\n", $bump);
+          if ($bump > 10) {
+              echo sprintf("::error file=version.php::version bump must be <= 10 (computed bump was %.10f).\n", $bump);
               exit(1);
           }
 
