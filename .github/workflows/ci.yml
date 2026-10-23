@@ -605,18 +605,29 @@ jobs:
 
           # phpunit_dataroot is always $GITHUB_WORKSPACE/moodledata/phpunit per the config template.
           PHPUNIT_DATAROOT="$GITHUB_WORKSPACE/moodledata/phpunit"
-          mkdir -p "$PHPUNIT_DATAROOT"
-          cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$PHPUNIT_DATAROOT/ci-phpunit.zip"
 
           # Detect phpunit util location (differs between classic and public/ layouts).
           if [ -f "$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php" ]; then
             PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/public/admin/tool/phpunit/cli/util.php"
+            PHPUNIT_BOOTSTRAP="$GITHUB_WORKSPACE/moodle/public/lib/phpunit/bootstrap.php"
           elif [ -f "$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php" ]; then
             PHPUNIT_UTIL="$GITHUB_WORKSPACE/moodle/admin/tool/phpunit/cli/util.php"
+            PHPUNIT_BOOTSTRAP="$GITHUB_WORKSPACE/moodle/lib/phpunit/bootstrap.php"
           else
             echo "Could not locate phpunit util.php"
             exit 1
           fi
+
+          # MDL-88495 in core (5.3+) stores snapshots in a 'snapshots' subdirectory
+          # of the phpunit_dataroot. The shared patches for older branches read them from the
+          # phpunit_dataroot root instead.
+          if grep -q "'snapshots'" "$PHPUNIT_BOOTSTRAP"; then
+            SNAPSHOT_DIR="$PHPUNIT_DATAROOT/snapshots"
+          else
+            SNAPSHOT_DIR="$PHPUNIT_DATAROOT"
+          fi
+          mkdir -p "$SNAPSHOT_DIR"
+          cp "$GITHUB_WORKSPACE/phpunit-snapshot.zip" "$SNAPSHOT_DIR/ci-phpunit.zip"
 
           php "$PHPUNIT_UTIL" --restore=ci-phpunit
           php "$PHPUNIT_UTIL" --upgrade
