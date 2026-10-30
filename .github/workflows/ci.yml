@@ -8,6 +8,10 @@ on:
         type: string
         description: 'Sets the branch the reusable workflow calls reusable workflow actions with'
         default: 'main'
+      internal_workflow_repository:
+        type: string
+        description: 'Repository the reusable workflow checks out its internal actions from'
+        default: 'catalyst/catalyst-moodle-workflows'
       codechecker_max_warnings:
         type: string
         description: 'Sets the value for --max-warnings on the moodle-plugin-ci codechecker step. Defaults to -1 which means no limit.'
@@ -59,6 +63,14 @@ on:
         description: 'If true, this will skip enforcing version bump checks on pull requests'
         type: boolean
         default: false
+      moodle_plugin_ci_repo:
+        description: 'Git repository to install moodle-plugin-ci from'
+        type: string
+        default: 'https://github.com/moodlehq/moodle-plugin-ci.git'
+      moodle_plugin_ci_ref:
+        description: 'Branch or tag of moodle-plugin-ci to install'
+        type: string
+        default: 'main'
       release_branches:
         description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
         type: string
@@ -150,7 +162,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Fetch latest Moodle updates cache
@@ -206,94 +218,82 @@ jobs:
       startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')
     runs-on: ubuntu-latest
     steps:
-      - name: Check out plugin code
+      - name: Check out PR base code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
-      - name: Fetch PR base and head commits
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
-          git fetch --no-tags --depth=1 origin "${HEAD_SHA}"
+          path: base
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Check out PR head code
+        uses: actions/checkout@v3
+        with:
+          path: head
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Check out CI code
+        uses: actions/checkout@v3
+        with:
+          path: ci
+          repository: ${{ inputs.internal_workflow_repository }}
+          ref: ${{ inputs.internal_workflow_branch }}
+          token: ${{ github.token }}
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
-      - name: Validate plugin version bump
+      - name: Install moodle-plugin-ci
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MOODLE_PLUGIN_CI_REPO: ${{ inputs.moodle_plugin_ci_repo }}
+          MOODLE_PLUGIN_CI_REF: ${{ inputs.moodle_plugin_ci_ref }}
         run: |
           set -euo pipefail
-
-          php <<'PHP'
-          <?php
-          $baseSha = getenv('BASE_SHA');
-          $headSha = getenv('HEAD_SHA');
-
-          if (!$baseSha || !$headSha) {
-              fwrite(STDERR, "Missing BASE_SHA or HEAD_SHA.\n");
-              exit(1);
-          }
-
-            function load_version_from_sha(string $sha, bool $allowFloat): string {
-              $target = escapeshellarg($sha . ':version.php');
-                $outputLines = [];
-                $exitCode = 0;
-                exec("git show {$target} 2>&1", $outputLines, $exitCode);
-
-                if ($exitCode !== 0) {
-                  $outputText = trim(implode("\n", $outputLines));
-                  fwrite(STDERR, "Failed to read version.php for commit {$sha} (git show exit code {$exitCode}).\n");
-                  if ($outputText !== '') {
-                    fwrite(STDERR, "git show output:\n{$outputText}\n");
-                  }
-                  exit(1);
-              }
-
-                $content = implode("\n", $outputLines);
-
-                $pattern = $allowFloat
-                  ? '/\\$plugin->version\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*;/'
-                  : '/\\$plugin->version\\s*=\\s*([0-9]+)\\s*;/';
-
-                if (!preg_match($pattern, $content, $matches)) {
-                  $expectedType = $allowFloat ? 'numeric (int or float)' : 'integer';
-                  fwrite(STDERR, "Could not find {$expectedType} \\$plugin->version in version.php at commit {$sha}.\n");
-                  exit(1);
-              }
-
-              return $matches[1];
-          }
-
-              $baseVersion = load_version_from_sha($baseSha, true);
-              $headVersion = load_version_from_sha($headSha, false);
-
-          echo "Base branch version: {$baseVersion}\n";
-          echo "Feature branch version: {$headVersion}\n";
-
-          $baseVersionFloat = (float)$baseVersion;
-          $headVersionFloat = (float)$headVersion;
-          $bump = $headVersionFloat - $baseVersionFloat;
-
-          if ($bump <= 0.0) {
-              echo "::error file=version.php::version.php must include a version bump in pull requests.\n";
-              exit(1);
-          }
-
-          if ($bump > 10) {
-              echo sprintf("::error file=version.php::version bump must be <= 10 (computed bump was %.10f).\n", $bump);
-              exit(1);
-          }
-
-          echo sprintf("Computed bump: %.10f\n", $bump);
-          PHP
-
-          echo "Version bump check passed."
+          git clone --depth 1 --branch "${MOODLE_PLUGIN_CI_REF}" "${MOODLE_PLUGIN_CI_REPO}" "${RUNNER_TEMP}/moodle-plugin-ci"
+          composer install -d "${RUNNER_TEMP}/moodle-plugin-ci" --no-dev --prefer-dist --no-progress -n
+          echo "${RUNNER_TEMP}/moodle-plugin-ci/bin" >> "${GITHUB_PATH}"
+        shell: bash
+      - name: Determine version policy
+        id: policy
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          AUTH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Pass the token as a git header so the PR checkout keeps persist-credentials off.
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${AUTH_TOKEN}" | base64 -w 0)"
+          echo "::add-mask::${auth_header}"
+          policy=$(GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" \
+            GIT_CONFIG_VALUE_0="${auth_header}" \
+            bash ci/.github/scripts/version-policy.sh head "${BASE_REF}")
+          echo "policy=${policy}" >> "${GITHUB_OUTPUT}"
+        shell: bash
+      - name: Detect plugin and subplugin directories
+        run: |
+          set -euo pipefail
+          php ci/.github/scripts/detect-plugin-dirs.php head base > "${RUNNER_TEMP}/plugin-dirs.txt"
+          if [ ! -s "${RUNNER_TEMP}/plugin-dirs.txt" ]; then
+            echo "No plugin or subplugin files changed; no version bump required."
+          else
+            echo "Directories to check:"
+            cat "${RUNNER_TEMP}/plugin-dirs.txt"
+          fi
+        shell: bash
+      - name: Validate plugin version bumps
+        env:
+          VERSION_POLICY: ${{ steps.policy.outputs.policy }}
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r rel; do
+            echo "Checking ${rel}"
+            if [ -f "base/${rel}/version.php" ]; then
+              moodle-plugin-ci version "head/${rel}" --baseline-dir "base/${rel}" --version-policy "${VERSION_POLICY}" || { echo "::error::Version check failed for ${rel}"; failed=1; }
+            else
+              moodle-plugin-ci version "head/${rel}" || { echo "::error::Version check failed for ${rel}"; failed=1; }
+            fi
+          done < "${RUNNER_TEMP}/plugin-dirs.txt"
+          exit "${failed}"
         shell: bash
 
   codechecker:
@@ -305,7 +305,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -345,7 +345,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -367,7 +367,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -392,7 +392,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -415,7 +415,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -439,7 +439,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -467,7 +467,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -491,7 +491,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Run plugin setup (canonical)
@@ -566,7 +566,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       - name: Tune PostgreSQL for CI speed
@@ -691,7 +691,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
       # Started manually (not via `services:`) because GitHub Actions always attaches
@@ -833,7 +833,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: ci
-          repository: catalyst/catalyst-moodle-workflows
+          repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
 
