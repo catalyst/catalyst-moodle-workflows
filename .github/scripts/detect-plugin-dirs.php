@@ -1,96 +1,128 @@
 <?php
 // Usage: php detect-plugin-dirs.php <repo-dir> [<base-dir>]
 // With a base dir, only plugin dirs whose files or submodule SHAs changed (or are new) are listed.
-$root = rtrim($argv[1], '/');
-$baseRoot = isset($argv[2]) ? rtrim($argv[2], '/') : null;
-$dirs = is_file("$root/version.php") ? ['.'] : [];
-$subpluginsFile = "$root/db/subplugins.json";
 
-if (is_file($subpluginsFile)) {
-    $json = json_decode((string) file_get_contents($subpluginsFile), true);
-    if (!is_array($json)) {
-        fwrite(STDERR, "db/subplugins.json is not valid JSON.\n");
-        exit(1);
+$repo = rtrim($argv[1], '/');
+$baseRepo = isset($argv[2]) ? rtrim($argv[2], '/') : null;
+
+$pluginDirs = findPluginDirs($repo);
+if ($pluginDirs === []) {
+    fail('No version.php found in the plugin or its subplugins.');
+}
+
+if ($baseRepo !== null) {
+    $pluginDirs = array_values(array_filter(
+        $pluginDirs,
+        fn(string $dir): bool => hasChanged($repo, $baseRepo, $dir, $pluginDirs)
+    ));
+}
+
+if ($pluginDirs !== []) {
+    echo implode("\n", $pluginDirs), "\n";
+}
+
+/** The root plugin ('.') and its subplugin dirs, relative to $repo, sorted and unique. */
+function findPluginDirs(string $repo): array
+{
+    $dirs = is_file("$repo/version.php") ? ['.'] : [];
+    if (is_file("$repo/db/subplugins.json")) {
+        $dirs = array_merge($dirs, subpluginDirs($repo));
     }
-    $headGitlinks = gitlinks($root);
-    $pluginName = pluginName($root);
+    $dirs = array_values(array_unique($dirs));
+    sort($dirs);
+    return $dirs;
+}
+
+/** Plugin dirs listed under db/subplugins.json, relative to $repo. */
+function subpluginDirs(string $repo): array
+{
+    $json = json_decode((string) file_get_contents("$repo/db/subplugins.json"), true);
+    if (!is_array($json)) {
+        fail('db/subplugins.json is not valid JSON.');
+    }
+    $headGitlinks = gitlinks($repo);
+    $pluginName = pluginName($repo);
+
     // subplugintypes paths are relative to the plugin, plugintypes paths to the Moodle root.
     $typeDirs = array_values($json['subplugintypes'] ?? []);
-    foreach ($json['plugintypes'] ?? [] as $path) {
-        $typeDirs[] = pluginRelativePath((string) $path, $pluginName);
+    foreach ($json['plugintypes'] ?? [] as $moodlePath) {
+        $typeDirs[] = pluginRelativePath((string) $moodlePath, $pluginName);
     }
 
-    foreach ($typeDirs as $path) {
-        $relPath = trim($path, '/');
-        $typeDir = "$root/$relPath";
-        if (!is_dir($typeDir)) {
+    $dirs = [];
+    foreach ($typeDirs as $typeDir) {
+        $relTypeDir = trim($typeDir, '/');
+        $absTypeDir = "$repo/$relTypeDir";
+        if (!is_dir($absTypeDir)) {
             continue;
         }
-        foreach (scandir($typeDir) as $name) {
+        foreach (scandir($absTypeDir) as $name) {
+            $relDir = "$relTypeDir/$name";
             // Unpopulated submodules are empty dirs, so a tracked gitlink also marks a plugin dir.
-            $child = "$relPath/$name";
-            if ($name[0] !== '.' && (is_file("$typeDir/$name/version.php") || isset($headGitlinks[$child]))) {
-                $dirs[] = $child;
+            if ($name[0] !== '.' && (is_file("$absTypeDir/$name/version.php") || isset($headGitlinks[$relDir]))) {
+                $dirs[] = $relDir;
             }
         }
     }
+    return $dirs;
 }
 
-$dirs = array_values(array_unique($dirs));
-sort($dirs);
-
-if ($dirs === []) {
-    fwrite(STDERR, "No version.php found in the plugin or its subplugins.\n");
-    exit(1);
-}
-
-if ($baseRoot !== null) {
-    $dirs = array_values(array_filter($dirs, function (string $rel) use ($dirs, $root, $baseRoot): bool {
-        $baseVersion = $rel === '.' ? "$baseRoot/version.php" : "$baseRoot/$rel/version.php";
-        // An unpopulated base submodule has no version.php, so its gitlink is what marks it as existing.
-        if (!is_file($baseVersion) && !isset(gitlinks($baseRoot)[$rel])) {
-            return true;
-        }
-        // The root plugin excludes its subplugin dirs, which are checked separately.
-        $nested = array_filter($dirs, fn(string $other): bool => $other !== $rel && ($rel === '.' || str_starts_with($other, "$rel/")));
-        return fileHashes($root, $rel, $nested) !== fileHashes($baseRoot, $rel, $nested);
-    }));
-}
-
-if ($dirs !== []) {
-    echo implode("\n", $dirs), "\n";
-}
-
-/** Map of repo-relative path to md5 (files) or commit SHA (submodules) for a plugin dir, skipping .git and nested plugin dirs. */
-function fileHashes(string $repo, string $rel, array $nested): array
+/** Whether a plugin dir is new in the base checkout or differs from it in files or submodule SHAs. */
+function hasChanged(string $repo, string $baseRepo, string $dir, array $pluginDirs): bool
 {
-    $start = $rel === '.' ? $repo : "$repo/$rel";
-    $prefix = $rel === '.' ? '' : "$rel/";
+    $baseVersion = $dir === '.' ? "$baseRepo/version.php" : "$baseRepo/$dir/version.php";
+    // An unpopulated base submodule has no version.php, so its gitlink is what marks it as existing.
+    if (!is_file($baseVersion) && !isset(gitlinks($baseRepo)[$dir])) {
+        return true;
+    }
+    // Nested plugin dirs are compared on their own, so they are left out of this dir's fingerprint.
+    $nestedDirs = array_filter($pluginDirs, fn(string $other): bool => $other !== $dir && isInside($other, $dir));
+    return fingerprint($repo, $dir, $nestedDirs) !== fingerprint($baseRepo, $dir, $nestedDirs);
+}
+
+/** Whether a repo-relative path is inside the plugin dir $dir; '.' contains every path. */
+function isInside(string $path, string $dir): bool
+{
+    return $dir === '.' || str_starts_with($path, "$dir/");
+}
+
+/**
+ * Map of repo-relative path to md5 (files) or commit SHA (submodules) within a plugin dir,
+ * skipping .git and nested plugin dirs.
+ */
+function fingerprint(string $repo, string $dir, array $nestedDirs): array
+{
+    $start = $dir === '.' ? $repo : "$repo/$dir";
+    $prefix = $dir === '.' ? '' : "$dir/";
     $hashes = [];
+
     if (is_dir($start)) {
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($start, FilesystemIterator::SKIP_DOTS));
         foreach ($files as $file) {
             $path = $prefix . substr($file->getPathname(), strlen($start) + 1);
-            if (!$file->isFile() || $path === '.git' || str_starts_with($path, '.git/') || isNested($path, $nested)) {
+            if (!$file->isFile() || $path === '.git' || str_starts_with($path, '.git/') || isNested($path, $nestedDirs)) {
                 continue;
             }
             $hashes[$path] = md5_file($file->getPathname());
         }
     }
+
     // Submodules are empty dirs in an unpopulated checkout, so their tracked SHA is the only signal.
     foreach (gitlinks($repo) as $path => $sha) {
-        if (($rel === '.' || $path === $rel || str_starts_with($path, $prefix)) && !isNested($path, $nested)) {
+        $inDir = $dir === '.' || $path === $dir || str_starts_with($path, $prefix);
+        if ($inDir && !isNested($path, $nestedDirs)) {
             $hashes[$path] = $sha;
         }
     }
+
     ksort($hashes);
     return $hashes;
 }
 
 /** Whether a repo-relative path is one of the nested plugin dirs or inside one. */
-function isNested(string $path, array $nested): bool
+function isNested(string $path, array $nestedDirs): bool
 {
-    foreach ($nested as $other) {
+    foreach ($nestedDirs as $other) {
         if ($path === $other || str_starts_with($path, "$other/")) {
             return true;
         }
@@ -105,8 +137,7 @@ function gitlinks(string $repo): array
     if (!isset($cache[$repo])) {
         exec(sprintf('git -C %s ls-tree -r HEAD', escapeshellarg($repo)), $lines, $code);
         if ($code !== 0) {
-            fwrite(STDERR, "Could not list submodules in $repo.\n");
-            exit(1);
+            fail("Could not list submodules in $repo.");
         }
         $cache[$repo] = [];
         foreach ($lines as $line) {
@@ -119,14 +150,15 @@ function gitlinks(string $repo): array
 }
 
 /** The plugin name from $plugin->component in version.php, or null if not declared. */
-function pluginName(string $root): ?string
+function pluginName(string $repo): ?string
 {
-    $versionFile = "$root/version.php";
-    if (!is_file($versionFile) || !preg_match('/\$(?:plugin|module)->component\s*=\s*[\'"]([a-z0-9_]+)[\'"]/', (string) file_get_contents($versionFile), $m)) {
+    $versionFile = "$repo/version.php";
+    $pattern = '/\$(?:plugin|module)->component\s*=\s*[\'"]([a-z0-9_]+)[\'"]/';
+    if (!is_file($versionFile) || !preg_match($pattern, (string) file_get_contents($versionFile), $m)) {
         return null;
     }
-    $pos = strpos($m[1], '_');
-    return $pos === false ? null : substr($m[1], $pos + 1);
+    $underscore = strpos($m[1], '_');
+    return $underscore === false ? null : substr($m[1], $underscore + 1);
 }
 
 /** Maps a plugintypes path (relative to the Moodle root) to the matching dir inside this plugin. */
@@ -141,6 +173,12 @@ function pluginRelativePath(string $moodlePath, ?string $pluginName): string
             }
         }
     }
-    fwrite(STDERR, "Cannot map plugintypes path \"$moodlePath\" to this plugin.\n");
+    fail("Cannot map plugintypes path \"$moodlePath\" to this plugin.");
+}
+
+/** Writes an error message to STDERR and exits with status 1. */
+function fail(string $message): void
+{
+    fwrite(STDERR, "$message\n");
     exit(1);
 }
