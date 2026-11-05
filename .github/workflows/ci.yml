@@ -78,7 +78,7 @@ on:
         type: string
         default: 'same_content_newer'
     secrets:
-      MOODLE_ORG_TOKEN:
+      MOODLE_MARKETPLACE_TOKEN:
         required: false
       COMPOSER_TRIGGER_URL:
         required: false
@@ -784,8 +784,8 @@ jobs:
       - name: Run behat
         run: moodle-plugin-ci behat --profile chrome
         shell: bash
-  release:
-    name: Release to the Moodle plugin directory
+  prepare_release:
+    name: Prepare plugin release
     needs:
       - pre_job
       - prepare_matrix
@@ -818,31 +818,91 @@ jobs:
       needs.pre_job.outputs.should_skip != 'true' &&
       needs.prepare_matrix.outputs.release_required == 'true' &&
       inputs.enable_release == true
-    runs-on: 'ubuntu-latest'
+    runs-on: ubuntu-latest
     outputs:
-      has-secrets: ${{ steps.check-secrets.outputs.has-secrets }}
+      release_mode: ${{ steps.release-info.outputs.release_mode }}
+      tag: ${{ steps.release-info.outputs.tag }}
     steps:
-      - name: Check if MOODLE_ORG_TOKEN has been supplied
-        id: check-secrets
+      - name: Check out plugin
+        uses: actions/checkout@v7
+      - name: Determine release information
+        id: release-info
         env:
-          SECRET_TO_CHECK: '${{ secrets.MOODLE_ORG_TOKEN }}'
-        if: ${{ env.SECRET_TO_CHECK != '' }}
-        run: echo "::set-output name=has-secrets::true"
+          MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
+        run: |
+          set -euo pipefail
 
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: catalyst/catalyst-moodle-workflows
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
+          VERSION="$(
+            sed -nE \
+              's/^[[:space:]]*\$plugin->version[[:space:]]*=[[:space:]]*([0-9]+)[[:space:]]*;.*$/\1/p' \
+              version.php |
+            head -n 1
+          )"
 
-      - name: Run plugin release
-        if: steps.check-secrets.outputs.has-secrets != ''
-        uses: ./ci/.github/plugin/release
+          if [[ ! "${VERSION}" =~ ^[0-9]+$ ]]; then
+            echo "::error file=version.php::Could not determine plugin version."
+            exit 1
+          fi
+
+          echo "tag=v${VERSION}" >> "${GITHUB_OUTPUT}"
+
+          if [ -n "$MARKETPLACE_TOKEN" ]; then
+            echo "release_mode=marketplace" >> "${GITHUB_OUTPUT}"
+          else
+            echo "release_mode=none" >> "${GITHUB_OUTPUT}"
+          fi
+  create_marketplace_tag:
+    name: Create Marketplace release tag
+    needs:
+      - prepare_release
+    if: needs.prepare_release.outputs.release_mode == 'marketplace'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      should_release: ${{ steps.tag.outputs.should_release }}
+    steps:
+      - name: Check out plugin
+        uses: actions/checkout@v7
         with:
-          plugin_name: ${{ needs.prepare_matrix.outputs.component }}
-          moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
+          fetch-depth: 0
+      - name: Create and push tag
+        id: tag
+        env:
+          TAG: ${{ needs.prepare_release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            TAG_COMMIT=$(git rev-list -n 1 "${TAG}")
+
+            if [ "${TAG_COMMIT}" != "${GITHUB_SHA}" ]; then
+              echo "::error::Tag ${TAG} already exists on another commit. Bump the plugin version to release."
+              exit 1
+            fi
+
+            echo "Tag ${TAG} already exists on this commit."
+            echo "should_release=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git tag "${TAG}" "${GITHUB_SHA}"
+          if ! git push origin "refs/tags/${TAG}"; then
+            echo "::error::Failed to push tag ${TAG}. The calling workflow most likely lacks 'permissions: contents: write'. Add it to the caller's workflow or job."
+            exit 1
+          fi
+          echo "should_release=true" >> "${GITHUB_OUTPUT}"
+  marketplace_release:
+    name: Release to the Moodle Marketplace
+    needs:
+      - prepare_release
+      - create_marketplace_tag
+    if: needs.create_marketplace_tag.outputs.should_release == 'true'
+    uses: moodlehq/moodle-plugin-release/.github/workflows/moodle-release.yml@main
+    with:
+      tag: ${{ needs.prepare_release.outputs.tag }}
+    secrets:
+      MOODLE_MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
 
   composer_publish:
     name: Trigger GitLab pipeline
