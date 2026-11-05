@@ -241,6 +241,7 @@ jobs:
           repository: ${{ inputs.internal_workflow_repository }}
           ref: ${{ inputs.internal_workflow_branch }}
           token: ${{ github.token }}
+          persist-credentials: false
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -272,10 +273,10 @@ jobs:
             bash ci/.github/scripts/version-policy.sh head "${BASE_REF}")
           echo "policy=${policy}" >> "${GITHUB_OUTPUT}"
         shell: bash
-      - name: Detect plugin and subplugin directories
+      - name: Determine version files to check
         run: |
           set -euo pipefail
-          php ci/.github/scripts/detect-plugin-dirs.php head base > "${RUNNER_TEMP}/plugin-dirs.txt"
+          php ci/.github/scripts/version-files-to-check.php head base > "${RUNNER_TEMP}/plugin-dirs.txt"
           if [ ! -s "${RUNNER_TEMP}/plugin-dirs.txt" ]; then
             echo "No plugin or subplugin files changed; no version bump required."
           else
