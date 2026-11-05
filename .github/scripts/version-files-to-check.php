@@ -1,6 +1,6 @@
 <?php
-// Usage: php detect-plugin-dirs.php <repo-dir> [<base-dir>]
-// With a base dir, only plugin dirs whose files or submodule SHAs changed (or are new) are listed.
+// Usage: php version-files-to-check.php <repo-dir> [<base-dir>]
+// With a base dir, lists changed plugin dirs, plus the root plugin if a subplugin changed or was removed.
 
 $repo = rtrim($argv[1], '/');
 $baseRepo = isset($argv[2]) ? rtrim($argv[2], '/') : null;
@@ -11,10 +11,12 @@ if ($pluginDirs === []) {
 }
 
 if ($baseRepo !== null) {
+    $headDirs = $pluginDirs;
     $pluginDirs = array_values(array_filter(
-        $pluginDirs,
-        fn(string $dir): bool => hasChanged($repo, $baseRepo, $dir, $pluginDirs)
+        $headDirs,
+        fn(string $dir): bool => hasChanged($repo, $baseRepo, $dir, $headDirs)
     ));
+    $pluginDirs = addRootForSubplugins($repo, $baseRepo, $headDirs, $pluginDirs);
 }
 
 if ($pluginDirs !== []) {
@@ -24,6 +26,8 @@ if ($pluginDirs !== []) {
 /** The root plugin ('.') and its subplugin dirs, relative to $repo, sorted and unique. */
 function findPluginDirs(string $repo): array
 {
+    assertNotSymlink("$repo/version.php");
+    assertNotSymlink("$repo/db/subplugins.json");
     $dirs = is_file("$repo/version.php") ? ['.'] : [];
     if (is_file("$repo/db/subplugins.json")) {
         $dirs = array_merge($dirs, subpluginDirs($repo));
@@ -56,10 +60,18 @@ function subpluginDirs(string $repo): array
         if (!is_dir($absTypeDir)) {
             continue;
         }
+        if (!resolvesInside($repo, $absTypeDir)) {
+            fail("Subplugin path \"$typeDir\" resolves outside the plugin.");
+        }
         foreach (scandir($absTypeDir) as $name) {
+            if ($name[0] === '.') {
+                continue;
+            }
             $relDir = "$relTypeDir/$name";
+            assertNotSymlink("$absTypeDir/$name");
+            assertNotSymlink("$absTypeDir/$name/version.php");
             // Unpopulated submodules are empty dirs, so a tracked gitlink also marks a plugin dir.
-            if ($name[0] !== '.' && (is_file("$absTypeDir/$name/version.php") || isset($headGitlinks[$relDir]))) {
+            if (is_file("$absTypeDir/$name/version.php") || isset($headGitlinks[$relDir])) {
                 $dirs[] = $relDir;
             }
         }
@@ -78,6 +90,25 @@ function hasChanged(string $repo, string $baseRepo, string $dir, array $pluginDi
     // Nested plugin dirs are compared on their own, so they are left out of this dir's fingerprint.
     $nestedDirs = array_filter($pluginDirs, fn(string $other): bool => $other !== $dir && isInside($other, $dir));
     return fingerprint($repo, $dir, $nestedDirs) !== fingerprint($baseRepo, $dir, $nestedDirs);
+}
+
+/** Adds the root plugin ('.') when a subplugin changed or was removed, since it must bump too. */
+function addRootForSubplugins(string $repo, string $baseRepo, array $headDirs, array $changedDirs): array
+{
+    $subplugin = fn(string $dir): bool => $dir !== '.';
+    $changedSubplugin = array_filter($changedDirs, $subplugin) !== [];
+    $removedSubplugin = array_diff(array_filter(findPluginDirs($baseRepo), $subplugin), $headDirs) !== [];
+    if (!$changedSubplugin && !$removedSubplugin) {
+        return $changedDirs;
+    }
+    if (in_array('.', $changedDirs, true) || !is_file("$repo/version.php")) {
+        return $changedDirs;
+    }
+    $reason = $changedSubplugin ? 'changed' : 'removed';
+    fwrite(STDERR, "Subplugin $reason, adding main plugin to list\n");
+    $changedDirs[] = '.';
+    sort($changedDirs);
+    return $changedDirs;
 }
 
 /** Whether a repo-relative path is inside the plugin dir $dir; '.' contains every path. */
@@ -100,10 +131,15 @@ function fingerprint(string $repo, string $dir, array $nestedDirs): array
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($start, FilesystemIterator::SKIP_DOTS));
         foreach ($files as $file) {
             $path = $prefix . substr($file->getPathname(), strlen($start) + 1);
-            if (!$file->isFile() || $path === '.git' || str_starts_with($path, '.git/') || isNested($path, $nestedDirs)) {
+            if ($path === '.git' || str_starts_with($path, '.git/') || isNested($path, $nestedDirs)) {
                 continue;
             }
-            $hashes[$path] = md5_file($file->getPathname());
+            if ($file->isLink()) {
+                // Record link targets without following them.
+                $hashes[$path] = 'symlink:' . readlink($file->getPathname());
+            } elseif ($file->isFile()) {
+                $hashes[$path] = md5_file($file->getPathname());
+            }
         }
     }
 
@@ -174,6 +210,23 @@ function pluginRelativePath(string $moodlePath, ?string $pluginName): string
         }
     }
     fail("Cannot map plugintypes path \"$moodlePath\" to this plugin.");
+}
+
+/** Fails if a path is a symlink, since it could point outside the checkout. */
+function assertNotSymlink(string $path): void
+{
+    if (is_link($path)) {
+        fail("$path must not be a symlink.");
+    }
+}
+
+/** Whether a path resolves, following symlinks, to a location inside $repo. */
+function resolvesInside(string $repo, string $path): bool
+{
+    $realRepo = realpath($repo);
+    $realPath = realpath($path);
+    return $realRepo !== false && $realPath !== false
+        && ($realPath === $realRepo || str_starts_with($realPath, $realRepo . '/'));
 }
 
 /** Writes an error message to STDERR and exits with status 1. */
