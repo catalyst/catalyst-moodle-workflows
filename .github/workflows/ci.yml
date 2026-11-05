@@ -66,11 +66,15 @@ on:
       moodle_plugin_ci_repo:
         description: 'Git repository to install moodle-plugin-ci from'
         type: string
-        default: 'https://github.com/moodlehq/moodle-plugin-ci.git'
+        # Temporarily set to Catalyst for version validation
+        # see https://github.com/moodlehq/moodle-plugin-ci/pull/407
+        default: 'https://github.com/catalyst/moodle-plugin-ci.git'
       moodle_plugin_ci_ref:
         description: 'Branch or tag of moodle-plugin-ci to install'
         type: string
-        default: 'main'
+        # Temporarily set to custom branch for version validation
+        # see https://github.com/moodlehq/moodle-plugin-ci/pull/407
+        default: '391-version-validation'
       release_branches:
         description: 'Required if the branch that should process releases is in a non-standard format (e.g. main or MOODLE_XX_STABLE)'
         type: string
