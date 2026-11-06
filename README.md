@@ -53,7 +53,7 @@ jobs:
     uses: catalyst/catalyst-moodle-workflows/.github/workflows/ci.yml@main
     # Required if you plan to publish (uncomment the below)
     # secrets:
-      # moodle_org_token: ${{ secrets.MOODLE_ORG_TOKEN }}
+      # MOODLE_MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
     with:
       # Any further options in this section
 ```
@@ -147,17 +147,14 @@ To view or modify the full matrix, please see it here: [.github/actions/matrix/m
 
 ## How does this automate releases?
 
-Whenever a change is made to version.php, the workflow is triggered on a release branch (e.g. __main__ / __MOODLE_XX_STABLE__), and tests pass, will it attempt to run the plugin/release action `.github/plugin/release/action.yml`. Doing so will automatically publish a release to the Moodle plugin directory at https://moodle.org/plugins.
+Whenever a change is made to version.php, the workflow is triggered on a release branch (e.g. __main__ / __MOODLE_XX_STABLE__), and tests pass, a `v<version>` git tag is created and the release is published to the Moodle Marketplace via `moodlehq/moodle-plugin-release`.
 
-In the prepare step of the CI, it will have resolved the component name for you so you don't need to enter one manually, and the `MOODLE_ORG_TOKEN` secret should be set otherwise the plugin won't be published.
+The `MOODLE_MARKETPLACE_TOKEN` secret must be set, otherwise no release is made.
 
-To configure the secret:
-* Please check `MOODLE_ORG_TOKEN` is available in your plugin's **Settings > Secrets** section. If not, please create using below steps:
-  * Log in to the Moodle Plugins directory at https://moodle.org/plugins/
-  * Locate the **Navigation block > Plugins > API access**.
-    * Use that page to generate your personal token for the `plugins_maintenance` service.
-  * Go back to your plugin repository at Github. Locate your plugin's **Settings > Secrets** section. Use the 'New repository secret' button to define a new repository secret to hold your access token. Use name `MOODLE_ORG_TOKEN` and set the value to the one you generated in previous step.
-* For the latest branch/stable releases in plugin directory we **MUST** bump plugin version (e.g. by date).
+The calling workflow must grant `permissions: contents: write` so the tag can be pushed. If the tag already exists on a different commit (version not bumped), the tag job fails and the release is skipped.
+
+To configure the secret, create a repository secret named `MOODLE_MARKETPLACE_TOKEN` in your plugin's **Settings > Secrets** section, holding your Moodle Marketplace access token.
+* For the latest branch/stable releases on the Marketplace we **MUST** bump plugin version (e.g. by date).
 * For the __older stables__ with closed groups, the version **MUST** be a <ins>**micro bump**</ins>.
 
 ## How does the version bump check work?
