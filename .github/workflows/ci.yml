@@ -860,7 +860,12 @@ jobs:
     name: Create Marketplace release tag
     needs:
       - prepare_release
-    if: needs.prepare_release.outputs.release_mode == 'marketplace'
+    # always() is needed: success() is implicitly applied otherwise and fails
+    # when any transitive ancestor (e.g. behat) was skipped.
+    if: |
+      always() &&
+      needs.prepare_release.result == 'success' &&
+      needs.prepare_release.outputs.release_mode == 'marketplace'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -902,7 +907,10 @@ jobs:
     needs:
       - prepare_release
       - create_marketplace_tag
-    if: needs.create_marketplace_tag.outputs.should_release == 'true'
+    if: |
+      always() &&
+      needs.create_marketplace_tag.result == 'success' &&
+      needs.create_marketplace_tag.outputs.should_release == 'true'
     uses: moodlehq/moodle-plugin-release/.github/workflows/moodle-release.yml@main
     with:
       tag: ${{ needs.prepare_release.outputs.tag }}
