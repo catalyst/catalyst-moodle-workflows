@@ -837,22 +837,12 @@ jobs:
         run: |
           set -euo pipefail
 
-<<<<<<< HEAD
           VERSION="$(
             sed -nE \
               's/^[[:space:]]*\$plugin->version[[:space:]]*=[[:space:]]*([0-9]+)[[:space:]]*;.*$/\1/p' \
               version.php |
             head -n 1
           )"
-=======
-      - name: Check out CI code
-        uses: actions/checkout@v3
-        with:
-          path: ci
-          repository: ${{ inputs.internal_workflow_repository }}
-          ref: ${{ inputs.internal_workflow_branch }}
-          token: ${{ github.token }}
->>>>>>> origin/main
 
           if [[ ! "${VERSION}" =~ ^[0-9]+$ ]]; then
             echo "::error file=version.php::Could not determine plugin version."
