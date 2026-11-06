@@ -87,6 +87,8 @@ Below lists the available inputs which are _all optional_:
 | disable_release          | If `true`, this will skip the release job                                                                                                                                                     |
 | disable_ci_validate      | If `true`, this will skip moodle-plugin-ci validate checks                                                                                                                               |
 | disable_version_bump_check | If `true`, this will skip pull-request version bump enforcement checks                                                                                                                   |
+| moodle_plugin_ci_repo    | Git repository to install moodle-plugin-ci from (default: moodlehq/moodle-plugin-ci)                                                                                                                   |
+| moodle_plugin_ci_ref     | Branch or tag of moodle-plugin-ci to install (default: main)                                                                                                                        |
 | enable_phpmd             | If `true`, to enable phpmd                                                                                                                                                               |
 | release_branches         | Name of the non-standardly named branch which should run the release job                                                                                                                 |
 | moodle_branches          | Specify the MOODLE_XX_STABLE branch you specifically want to test against. This is _not_ recommended, and instead you should configuring a supported range.                              |
@@ -154,6 +156,12 @@ The calling workflow must grant `permissions: contents: write` so the tag can be
 To configure the secret, create a repository secret named `MOODLE_MARKETPLACE_TOKEN` in your plugin's **Settings > Secrets** section, holding your Moodle Marketplace access token.
 * For the latest branch/stable releases on the Marketplace we **MUST** bump plugin version (e.g. by date).
 * For the __older stables__ with closed groups, the version **MUST** be a <ins>**micro bump**</ins>.
+
+## How does the version bump check work?
+On pull requests targeting a `MOODLE_XX_STABLE` branch, the workflow runs `moodle-plugin-ci version` against the PR base and head code:
+1. The policy is `latest` when the PR base is the highest `MOODLE_XX_STABLE` branch in the repository, otherwise `frozen`.
+2. The plugin is checked at the PR base and head commits, and the version bump is validated against the base.
+3. Subplugins are detected automatically from `db/subplugins.json`: each subdirectory of a listed subplugin type path with a `version.php` is checked the same way.
 
 ## Common concerns / issues
 
