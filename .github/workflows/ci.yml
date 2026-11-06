@@ -851,11 +851,36 @@ jobs:
 
           echo "tag=v${VERSION}" >> "${GITHUB_OUTPUT}"
 
-          if [ -n "$MARKETPLACE_TOKEN" ]; then
+          echo "DEBUG version=${VERSION}"
+          echo "DEBUG event=${GITHUB_EVENT_NAME} ref=${GITHUB_REF} actor=${GITHUB_ACTOR}"
+          echo "DEBUG token length=${#MARKETPLACE_TOKEN}"
+
+          if [ -n "${MARKETPLACE_TOKEN}" ]; then
             echo "release_mode=marketplace" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Marketplace release is enabled."
           else
             echo "release_mode=none" >> "${GITHUB_OUTPUT}"
+            echo "::warning::MOODLE_MARKETPLACE_TOKEN is not available; release will be skipped."
           fi
+
+          echo "DEBUG outputs written:"
+          cat "${GITHUB_OUTPUT}"
+      - name: Debug release gating
+        env:
+          ENABLE_RELEASE: ${{ inputs.enable_release }}
+          RELEASE_REQUIRED: ${{ needs.prepare_matrix.outputs.release_required }}
+          SHOULD_SKIP: ${{ needs.pre_job.outputs.should_skip }}
+          RELEASE_MODE: ${{ steps.release-info.outputs.release_mode }}
+          TAG: ${{ steps.release-info.outputs.tag }}
+          NEEDS_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "DEBUG enable_release=${ENABLE_RELEASE}"
+          echo "DEBUG release_required=${RELEASE_REQUIRED}"
+          echo "DEBUG should_skip=${SHOULD_SKIP}"
+          echo "DEBUG release_mode=${RELEASE_MODE}"
+          echo "DEBUG tag=${TAG}"
+          echo "DEBUG needs results:"
+          echo "${NEEDS_RESULTS}" | grep -E '"(result|[a-z_]+)": \{|"result"' || true
   create_marketplace_tag:
     name: Create Marketplace release tag
     needs:
