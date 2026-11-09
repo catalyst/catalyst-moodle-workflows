@@ -68,9 +68,9 @@ on:
         type: string
         default: 'bump_parent'
       release_version_policy:
-        description: 'none (default) skips the release check. match_version requires $plugin->release to equal $plugin->version in each checked version.php.'
+        description: 'none skips the release check. match_version (default) requires $plugin->release to equal $plugin->version in each checked version.php.'
         type: string
-        default: 'none'
+        default: 'match_version'
       version_branch_pattern:
         description: 'PCRE with a (?<version>...) group selecting the version branches to check. Empty (default) uses MOODLE_XXX_STABLE. An optional (?<group>...) group limits comparisons to branches in the same group.'
         type: string

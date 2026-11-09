@@ -47,6 +47,12 @@ echo "$versionFile: release matches version ($version).\n";
 /** The literal value assigned to $plugin->$property (or $module->$property), or null if not found. */
 function assignedValue(string $contents, string $property): ?string
 {
+    $contents = implode('', array_map(
+        static fn($token): string => is_array($token)
+            ? (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true) ? ' ' : $token[1])
+            : $token,
+        token_get_all($contents)
+    ));
     $pattern = '/\$(?:plugin|module)->' . $property . '\s*=\s*(?:\'([^\']*)\'|"([^"]*)"|([0-9.]+))\s*;/';
     if (!preg_match($pattern, $contents, $m, PREG_UNMATCHED_AS_NULL)) {
         return null;
