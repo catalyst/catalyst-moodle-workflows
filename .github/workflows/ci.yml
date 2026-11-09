@@ -71,6 +71,10 @@ on:
         description: 'none (default) skips the release check. match_version requires $plugin->release to equal $plugin->version in each checked version.php.'
         type: string
         default: 'none'
+      version_branch_pattern:
+        description: 'PCRE with a (?<version>...) group selecting the version branches to check. Empty (default) uses MOODLE_XXX_STABLE. An optional (?<group>...) group limits comparisons to branches in the same group.'
+        type: string
+        default: ''
       moodle_plugin_ci_repo:
         description: 'Git repository to install moodle-plugin-ci from'
         type: string
@@ -227,7 +231,7 @@ jobs:
       needs.pre_job.outputs.should_skip != 'true' &&
       github.event_name == 'pull_request' &&
       inputs.disable_version_bump_check != true &&
-      startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')
+      ((startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')) || inputs.version_branch_pattern != '')
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR base code
@@ -270,15 +274,20 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           AUTH_TOKEN: ${{ github.token }}
+          VERSION_BRANCH_PATTERN: ${{ inputs.version_branch_pattern }}
         run: |
           set -euo pipefail
           # Pass the token as a git header so the PR checkout keeps persist-credentials off.
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${AUTH_TOKEN}" | base64 -w 0)"
           echo "::add-mask::${auth_header}"
+          args=()
+          if [[ -n "${VERSION_BRANCH_PATTERN}" ]]; then
+            args+=("--branch-pattern=${VERSION_BRANCH_PATTERN}")
+          fi
           policy=$(GIT_CONFIG_COUNT=1 \
             GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" \
             GIT_CONFIG_VALUE_0="${auth_header}" \
-            php ci/.github/scripts/version-policy.php head "${BASE_REF}")
+            php ci/.github/scripts/version-policy.php head "${BASE_REF}" "${args[@]}")
           echo "policy=${policy}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Determine version files to check
