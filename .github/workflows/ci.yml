@@ -48,7 +48,7 @@ on:
       enable_composer_publish:
         description: 'If true, enables publishing plugin composer package on pushes to *_STABLE branches'
         type: boolean
-        default: false
+        default: true
       enable_phpmd:
         type: boolean
         default: false
