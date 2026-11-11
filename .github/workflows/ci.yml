@@ -63,6 +63,18 @@ on:
         description: 'If true, this will skip enforcing version bump checks on pull requests'
         type: boolean
         default: false
+      subplugin_version_policy:
+        description: 'bump_parent (default) also requires a parent bump when a subplugin changes or is removed. individual checks each plugin on its own.'
+        type: string
+        default: 'bump_parent'
+      release_version_policy:
+        description: 'none skips the release check. match_version (default) requires $plugin->release to equal $plugin->version in each checked version.php.'
+        type: string
+        default: 'match_version'
+      version_branch_pattern:
+        description: 'PCRE with a (?<version>...) group selecting the version branches to check. Empty (default) uses MOODLE_XXX_STABLE. An optional (?<group>...) group limits comparisons to branches in the same group.'
+        type: string
+        default: ''
       moodle_plugin_ci_repo:
         description: 'Git repository to install moodle-plugin-ci from'
         type: string
@@ -219,7 +231,7 @@ jobs:
       needs.pre_job.outputs.should_skip != 'true' &&
       github.event_name == 'pull_request' &&
       inputs.disable_version_bump_check != true &&
-      startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')
+      ((startsWith(github.base_ref, 'MOODLE_') && endsWith(github.base_ref, '_STABLE')) || inputs.version_branch_pattern != '')
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR base code
@@ -262,21 +274,29 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           AUTH_TOKEN: ${{ github.token }}
+          VERSION_BRANCH_PATTERN: ${{ inputs.version_branch_pattern }}
         run: |
           set -euo pipefail
           # Pass the token as a git header so the PR checkout keeps persist-credentials off.
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${AUTH_TOKEN}" | base64 -w 0)"
           echo "::add-mask::${auth_header}"
+          args=()
+          if [[ -n "${VERSION_BRANCH_PATTERN}" ]]; then
+            args+=("--branch-pattern=${VERSION_BRANCH_PATTERN}")
+          fi
           policy=$(GIT_CONFIG_COUNT=1 \
             GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" \
             GIT_CONFIG_VALUE_0="${auth_header}" \
-            bash ci/.github/scripts/version-policy.sh head "${BASE_REF}")
+            php ci/.github/scripts/version-policy.php head "${BASE_REF}" "${args[@]}")
           echo "policy=${policy}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Determine version files to check
+        if: steps.policy.outputs.policy != 'skip'
+        env:
+          SUBPLUGIN_POLICY: ${{ inputs.subplugin_version_policy }}
         run: |
           set -euo pipefail
-          php ci/.github/scripts/version-files-to-check.php head base > "${RUNNER_TEMP}/plugin-dirs.txt"
+          php ci/.github/scripts/version-files-to-check.php head base --subplugin-policy="${SUBPLUGIN_POLICY}" > "${RUNNER_TEMP}/plugin-dirs.txt"
           if [ ! -s "${RUNNER_TEMP}/plugin-dirs.txt" ]; then
             echo "No plugin or subplugin files changed; no version bump required."
           else
@@ -285,8 +305,10 @@ jobs:
           fi
         shell: bash
       - name: Validate plugin version bumps
+        if: steps.policy.outputs.policy != 'skip'
         env:
           VERSION_POLICY: ${{ steps.policy.outputs.policy }}
+          RELEASE_POLICY: ${{ inputs.release_version_policy }}
         run: |
           set -euo pipefail
           failed=0
@@ -297,6 +319,7 @@ jobs:
             else
               moodle-plugin-ci version "head/${rel}" || { echo "::error::Version check failed for ${rel}"; failed=1; }
             fi
+            php ci/.github/scripts/check-release.php "head/${rel}" --release-policy="${RELEASE_POLICY}" || { echo "::error::Release check failed for ${rel}"; failed=1; }
           done < "${RUNNER_TEMP}/plugin-dirs.txt"
           exit "${failed}"
         shell: bash

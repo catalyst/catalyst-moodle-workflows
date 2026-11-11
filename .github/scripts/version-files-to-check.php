@@ -1,9 +1,27 @@
 <?php
-// Usage: php version-files-to-check.php <repo-dir> [<base-dir>]
-// With a base dir, lists changed plugin dirs, plus the root plugin if a subplugin changed or was removed.
+// Usage: php version-files-to-check.php <repo-dir> [<base-dir>] [--subplugin-policy=bump_parent|individual]
+// With a base dir, lists changed plugin dirs, plus the root plugin (bump_parent only) if a subplugin
+// changed or was removed.
 
-$repo = rtrim($argv[1], '/');
-$baseRepo = isset($argv[2]) ? rtrim($argv[2], '/') : null;
+$subpluginPolicy = 'bump_parent';
+$args = [];
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--subplugin-policy=')) {
+        $subpluginPolicy = substr($arg, strlen('--subplugin-policy='));
+    } elseif (str_starts_with($arg, '--')) {
+        fail("Unknown option: $arg");
+    } else {
+        $args[] = $arg;
+    }
+}
+if (!in_array($subpluginPolicy, ['bump_parent', 'individual'], true)) {
+    fail("Invalid --subplugin-policy \"$subpluginPolicy\", expected bump_parent or individual.");
+}
+if (!isset($args[0])) {
+    fail('Usage: php version-files-to-check.php <repo-dir> [<base-dir>] [--subplugin-policy=bump_parent|individual]');
+}
+$repo = rtrim($args[0], '/');
+$baseRepo = isset($args[1]) ? rtrim($args[1], '/') : null;
 
 $pluginDirs = findPluginDirs($repo);
 if ($pluginDirs === []) {
@@ -12,11 +30,13 @@ if ($pluginDirs === []) {
 
 if ($baseRepo !== null) {
     $headDirs = $pluginDirs;
+    // Base dirs too, so a removed subplugin's files are not counted as a change to its parent.
+    $knownDirs = array_values(array_unique(array_merge($headDirs, findPluginDirs($baseRepo))));
     $pluginDirs = array_values(array_filter(
         $headDirs,
-        fn(string $dir): bool => hasChanged($repo, $baseRepo, $dir, $headDirs)
+        fn(string $dir): bool => hasChanged($repo, $baseRepo, $dir, $knownDirs)
     ));
-    $pluginDirs = addRootForSubplugins($repo, $baseRepo, $headDirs, $pluginDirs);
+    $pluginDirs = addRootForSubplugins($repo, $baseRepo, $headDirs, $pluginDirs, $subpluginPolicy);
 }
 
 if ($pluginDirs !== []) {
@@ -92,12 +112,12 @@ function hasChanged(string $repo, string $baseRepo, string $dir, array $pluginDi
     return fingerprint($repo, $dir, $nestedDirs) !== fingerprint($baseRepo, $dir, $nestedDirs);
 }
 
-/** Adds the root plugin ('.') when a subplugin changed or was removed, since it must bump too. */
-function addRootForSubplugins(string $repo, string $baseRepo, array $headDirs, array $changedDirs): array
+/** Adds the root plugin ('.') when a subplugin changed or was removed, under the bump_parent policy only. */
+function addRootForSubplugins(string $repo, string $baseRepo, array $headDirs, array $changedDirs, string $policy): array
 {
     $subplugin = fn(string $dir): bool => $dir !== '.';
-    $changedSubplugin = array_filter($changedDirs, $subplugin) !== [];
-    $removedSubplugin = array_diff(array_filter(findPluginDirs($baseRepo), $subplugin), $headDirs) !== [];
+    $changedSubplugin = $policy === 'bump_parent' && array_filter($changedDirs, $subplugin) !== [];
+    $removedSubplugin = $policy === 'bump_parent' && array_diff(array_filter(findPluginDirs($baseRepo), $subplugin), $headDirs) !== [];
     if (!$changedSubplugin && !$removedSubplugin) {
         return $changedDirs;
     }

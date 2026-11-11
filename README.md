@@ -86,6 +86,8 @@ Below lists the available inputs which are _all optional_:
 | disable_master           | If `true`, this will skip testing against moodle/master branch                                                                                                                           |
 | disable_release          | If `true`, this will skip the release job                                                                                                                                                     |
 | disable_ci_validate      | If `true`, this will skip moodle-plugin-ci validate checks                                                                                                                               |
+| subplugin_version_policy | `bump_parent` (default) also requires a parent version bump when a subplugin changes. `individual` checks each plugin on its own. |
+| release_version_policy | `none` or `match_version` (default), which requires `$plugin->release` to equal `$plugin->version` in each checked `version.php`. |
 | disable_version_bump_check | If `true`, this will skip pull-request version bump enforcement checks                                                                                                                   |
 | moodle_plugin_ci_repo    | Git repository to install moodle-plugin-ci from (default: moodlehq/moodle-plugin-ci)                                                                                                                   |
 | moodle_plugin_ci_ref     | Branch or tag of moodle-plugin-ci to install (default: main)                                                                                                                        |
@@ -159,9 +161,10 @@ To configure the secret, create a repository secret named `MOODLE_MARKETPLACE_TO
 
 ## How does the version bump check work?
 On pull requests targeting a `MOODLE_XX_STABLE` branch, the workflow runs `moodle-plugin-ci version` against the PR base and head code:
-1. The policy is `latest` when the PR base is the highest `MOODLE_XX_STABLE` branch in the repository, otherwise `frozen`.
+1. The policy is `latest` when the PR base is the highest `MOODLE_XX_STABLE` branch in the repository, otherwise `frozen`. Versions are compared by major (first digit) then minor (remaining digits), so `MOODLE_401_STABLE` is 4.1 and `MOODLE_311_STABLE` is 3.11.
 2. The plugin is checked at the PR base and head commits, and the version bump is validated against the base.
-3. Subplugins are detected automatically from `db/subplugins.json`: each subdirectory of a listed subplugin type path with a `version.php` is checked the same way.
+3. Subplugins are detected automatically from `db/subplugins.json`: each subdirectory of a listed subplugin type path with a `version.php` is checked the same way. With `subplugin_version_policy: bump_parent` (default), a changed or removed subplugin also requires the parent plugin to be bumped. With `individual`, each plugin is checked on its own and removing a subplugin does not require a parent bump.
+4. With `release_version_policy: match_version`, the `$plugin->release` value in each checked `version.php` must equal `$plugin->version`. The default is `match_version`.
 
 ## Common concerns / issues
 
