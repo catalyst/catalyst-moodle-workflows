@@ -667,11 +667,8 @@ jobs:
       - name: Run phpunit
         working-directory: moodle
         run: |
-          echo "::group::Plugin unit tests"
-          vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite ${{ needs.prepare_matrix.outputs.component }}_testsuite
-          echo "::endgroup::"
           while read -r dir; do
-            echo "::group::Subplugin unit tests: ${dir}"
+            echo "::group::Unit tests: ${dir}"
             vendor/bin/phpunit --fail-on-risky --disallow-test-output --test-suffix=_test.php "${dir}"
             echo "::endgroup::"
           done < <("${GITHUB_WORKSPACE}/ci/.github/scripts/phpunit-test-dirs.sh" "${PLUGIN_DIR}")
