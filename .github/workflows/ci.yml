@@ -674,6 +674,20 @@ jobs:
           vendor/bin/phpunit --fail-on-risky --disallow-test-output --testsuite core_privacy_testsuite --filter thirdparty_providers_compliant
           echo "::endgroup::"
         shell: bash
+      # The generated phpunit.xml only covers the main plugin's tests, so run each subplugin's tests directly.
+      - name: Run phpunit for subplugins
+        working-directory: moodle
+        run: |
+          set -euo pipefail
+          php "${GITHUB_WORKSPACE}/ci/.github/scripts/subplugin-test-dirs.php" "${GITHUB_WORKSPACE}/plugin" > "${RUNNER_TEMP}/subplugin-test-dirs.txt"
+          failed=0
+          while IFS= read -r rel; do
+            echo "::group::Subplugin unit tests: ${rel}"
+            vendor/bin/phpunit --fail-on-risky --disallow-test-output --test-suffix=_test.php "${PLUGIN_DIR}/${rel}" || failed=1
+            echo "::endgroup::"
+          done < "${RUNNER_TEMP}/subplugin-test-dirs.txt"
+          exit "${failed}"
+        shell: bash
   behat:
     name: ${{ matrix.moodle-branch-short }} - behat - php${{ matrix.php }} - ${{ matrix.database }}
     needs: prepare_matrix
