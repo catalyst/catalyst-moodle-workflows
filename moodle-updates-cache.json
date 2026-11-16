@@ -2,8 +2,8 @@
     "status": "OK",
     "provider": "https://download.moodle.org/api/1.3/updates.php",
     "apiver": "1.3",
-    "timegenerated": 1794199147,
-    "ticket": "JUM5JTkxJTYwJUFCbiU4MiU3RiUyQyVCNCU5MiVEOCVEMSVFMGYlMTQlQjdJJTkzJTlBJUZFUDIlQ0R3dyVCQyVGRSUxRW4lQTYlN0QlMEMlRENDJTFCJTg1JTdCJThDJTg5TA==",
+    "timegenerated": 1794804563,
+    "ticket": "JUM5JTkxZyVBQjUlODIuJTdCJUU2JTk0JUQwJURBJUU5NiUxMSVCNyUxQSU5QiVDOCVBMiU1RWElQzAlMjQlN0IlRTglQTglMUQ5JUE2dSUwOCVEQyUxMyUxQiU4NSU3QiU4QyU4OUw=",
     "forbranch": "3.8",
     "forversion": "0.0",
     "updates": {
@@ -53,47 +53,47 @@
                 }
             },
             {
-                "version": 2025100608.02,
-                "release": "5.1.8+ (Build: 20261030)",
+                "version": 2025100609,
+                "release": "5.1.9 (Build: 20261112)",
                 "branch": "5.01",
                 "maturity": 200,
-                "date": 1791019992,
+                "date": 1794451633,
                 "url": "https://download.moodle.org",
-                "download": "https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.zip",
+                "download": "https://download.moodle.org/download.php/direct/stable501/moodle-5.1.9.zip",
                 "norelease_index_info": {
                     "version": "5.1.8+",
                     "branch": "MOODLE_501_STABLE",
                     "githash": "a682566412e",
-                    "date": 1793328400,
+                    "date": 1794406561,
                     "zip": {
-                        "size": 99641933,
+                        "size": 99675361,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75392641,
+                        "size": 75417549,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "release_index_info": {
-                    "version": "5.1.8",
+                    "version": "5.1.9",
                     "branch": "MOODLE_501_STABLE",
-                    "githash": "cc0bf17",
-                    "date": 1791019992,
+                    "githash": "939b25ee6be",
+                    "date": 1794451633,
                     "zip": {
-                        "size": 99637756,
+                        "size": 99674044,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75466974,
+                        "size": 75419254,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 241304678
+                    "size": 241336334
                 }
             },
             {
@@ -273,47 +273,47 @@
                 }
             },
             {
-                "version": 2025041411,
-                "release": "5.0.11 (Build: 20261005)",
+                "version": 2025041412,
+                "release": "5.0.12 (Build: 20261112)",
                 "branch": "5.00",
                 "maturity": 200,
-                "date": 1791019930,
+                "date": 1794451673,
                 "url": "https://download.moodle.org",
-                "download": "https://download.moodle.org/download.php/direct/stable500/moodle-5.0.11.zip",
+                "download": "https://download.moodle.org/download.php/direct/stable500/moodle-5.0.12.zip",
                 "norelease_index_info": {
                     "version": "5.0.10+",
                     "branch": "MOODLE_500_STABLE",
                     "githash": "e09c92fa",
-                    "date": 1790871144,
+                    "date": 1794406607,
                     "zip": {
-                        "size": 98315597,
+                        "size": 98318381,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75014030,
+                        "size": 74941986,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "release_index_info": {
-                    "version": "5.0.11",
+                    "version": "5.0.12",
                     "branch": "MOODLE_500_STABLE",
-                    "githash": "744cc0c",
-                    "date": 1791019930,
+                    "githash": "2d62d8b1589",
+                    "date": 1794451673,
                     "zip": {
-                        "size": 98315595,
+                        "size": 98318385,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75012370,
+                        "size": 74940964,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 240923932
+                    "size": 240926748
                 }
             },
             {
@@ -405,47 +405,47 @@
                 }
             },
             {
-                "version": 2024100715.02,
-                "release": "4.5.15+ (Build: 20261030)",
+                "version": 2024100716,
+                "release": "4.5.16 (Build: 20261112)",
                 "branch": "4.05",
                 "maturity": 200,
-                "date": 1791019947,
+                "date": 1794451693,
                 "url": "https://download.moodle.org",
-                "download": "https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.zip",
+                "download": "https://download.moodle.org/download.php/direct/stable405/moodle-4.5.16.zip",
                 "norelease_index_info": {
                     "version": "4.5.15+",
                     "branch": "MOODLE_405_STABLE",
                     "githash": "c0690bbc765",
-                    "date": 1793328419,
+                    "date": 1794406625,
                     "zip": {
-                        "size": 98627415,
+                        "size": 98659086,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75079567,
+                        "size": 75105729,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "release_index_info": {
-                    "version": "4.5.15",
+                    "version": "4.5.16",
                     "branch": "MOODLE_405_STABLE",
-                    "githash": "215f443",
-                    "date": 1791019947,
+                    "githash": "69ef83ad294",
+                    "date": 1794451693,
                     "zip": {
-                        "size": 98623336,
+                        "size": 98657770,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 75136827,
+                        "size": 75105117,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 241248833
+                    "size": 241279192
                 }
             },
             {
@@ -537,119 +537,119 @@
                 }
             },
             {
-                "version": 2026042004.04,
-                "release": "5.2.4+ (Build: 20261030)",
+                "version": 2026042005,
+                "release": "5.2.5 (Build: 20261112)",
                 "branch": "5.02",
                 "maturity": 200,
-                "date": 1791019979,
+                "date": 1794451777,
                 "url": "https://download.moodle.org",
-                "download": "https://download.moodle.org/download.php/direct/stable502/moodle-latest-502.zip",
+                "download": "https://download.moodle.org/download.php/direct/stable502/moodle-5.2.5.zip",
                 "norelease_index_info": {
                     "version": "5.2.4+",
                     "branch": "MOODLE_502_STABLE",
                     "githash": "28fdef85e70",
-                    "date": 1793328378,
+                    "date": 1794406522,
                     "zip": {
-                        "size": 144146434,
+                        "size": 144186366,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 89823247,
+                        "size": 89850236,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "release_index_info": {
-                    "version": "5.2.4",
+                    "version": "5.2.5",
                     "branch": "MOODLE_502_STABLE",
-                    "githash": "2df605b",
-                    "date": 1791019979,
+                    "githash": "5ce15767f3a",
+                    "date": 1794451777,
                     "zip": {
-                        "size": 144118936,
+                        "size": 144184089,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 89843362,
+                        "size": 89852894,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 285612361
+                    "size": 285650385
                 }
             },
             {
-                "version": 2026100500.08,
-                "release": "5.3+ (Build: 20261030)",
+                "version": 2026100501,
+                "release": "5.3.1 (Build: 20261112)",
                 "branch": "5.03",
                 "maturity": 200,
-                "date": 1791020085,
+                "date": 1794451722,
                 "url": "https://download.moodle.org",
-                "download": "https://download.moodle.org/download.php/direct/stable503/moodle-latest-503.zip",
+                "download": "https://download.moodle.org/download.php/direct/stable503/moodle-5.3.1.zip",
                 "norelease_index_info": {
                     "version": "5.3+",
                     "branch": "MOODLE_503_STABLE",
                     "githash": "236a9d702e6",
-                    "date": 1793328342,
+                    "date": 1794407307,
                     "zip": {
-                        "size": 157835873,
+                        "size": 157889358,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 98129756,
+                        "size": 98169520,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "release_index_info": {
-                    "version": "5.3",
+                    "version": "5.3.1",
                     "branch": "MOODLE_503_STABLE",
-                    "githash": "4262229",
-                    "date": 1791020085,
+                    "githash": "cfe123f26fc",
+                    "date": 1794451722,
                     "zip": {
-                        "size": 157700273,
+                        "size": 157886568,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 98048842,
+                        "size": 98165163,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 297592021
+                    "size": 297643345
                 }
             },
             {
-                "version": 2026103000,
-                "release": "6.0dev (Build: 20261030)",
+                "version": 2026111100,
+                "release": "6.0dev (Build: 20261111)",
                 "branch": "6.00",
                 "maturity": 50,
-                "date": 1793328610,
+                "date": 1794408416,
                 "url": "https://download.moodle.org",
                 "download": "https://download.moodle.org/download.php/direct/moodle/moodle-latest.zip",
                 "norelease_index_info": {
                     "version": "6.0dev",
                     "branch": "main",
-                    "githash": "05809916698",
-                    "date": 1793328610,
+                    "githash": "afbcc55fa1b",
+                    "date": 1794408416,
                     "zip": {
-                        "size": 157808444,
+                        "size": 158051670,
                         "md5": true,
                         "sha256": true
                     },
                     "tgz": {
-                        "size": 98077880,
+                        "size": 98267957,
                         "md5": true,
                         "sha256": true
                     }
                 },
                 "windows": {
-                    "size": 297558718
+                    "size": 297722801
                 }
             }
         ]
