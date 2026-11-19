@@ -794,7 +794,36 @@ jobs:
             DOCROOT="$GITHUB_WORKSPACE/moodle"
           fi
 
-          php -S localhost:8000 -t "$DOCROOT" >/tmp/php-server.log 2>&1 &
+          # Moodle 4.5+ relies on its router (r.php) to handle requests for paths that
+          # don't exist on disk, e.g. /robots.txt, which plugins serve via hooks. The bare
+          # PHP dev server doesn't do this fallback for such paths on all PHP versions and
+          # answers with its own 404, so Moodle never runs. This router script serves files
+          # that exist and hands everything else to r.php, like the web server rewrite rule
+          # described in https://docs.moodle.org/en/Configuring_the_Router
+          ROUTER=""
+          if [ -f "$DOCROOT/r.php" ]; then
+            ROUTER=/tmp/moodle-router.php
+            cat > "$ROUTER" <<EOF
+          <?php
+          \$path = parse_url(\$_SERVER['REQUEST_URI'], PHP_URL_PATH);
+          if (file_exists('$DOCROOT' . \$path)) {
+              return false;
+          }
+          // Let the built-in server handle slash arguments, e.g. /pluginfile.php/1/x.
+          \$prefix = '';
+          foreach (explode('/', trim(\$path, '/')) as \$part) {
+              \$prefix .= '/' . \$part;
+              if (substr(\$prefix, -4) === '.php' && is_file('$DOCROOT' . \$prefix)) {
+                  return false;
+              }
+          }
+          \$_SERVER['SCRIPT_NAME'] = '/r.php';
+          \$_SERVER['SCRIPT_FILENAME'] = '$DOCROOT/r.php';
+          require '$DOCROOT/r.php';
+          EOF
+          fi
+
+          php -S localhost:8000 -t "$DOCROOT" $ROUTER >/tmp/php-server.log 2>&1 &
           echo "Started PHP dev server (pid $!) serving $DOCROOT on localhost:8000"
 
           for i in $(seq 1 15); do
