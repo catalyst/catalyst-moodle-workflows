@@ -86,9 +86,15 @@ function container_image_name($moodle_branch, $php) {
     return "ghcr.io/catalyst/$repo:latest";
 }
 
-$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix) {
+// Read env var to see if we should run mssql.
+$enableMssql = !empty($_SERVER['enable_mssql']) && $_SERVER['enable_mssql'] !== 'false';
+
+$preparedMatrix = array_filter($matrix['include'], function($entry) use($plugin, $updates, $matrix, $enableMssql) {
 
     if (!isset($entry)) {
+        return false;
+    }
+    if (($entry['database'] ?? '') === 'mssql' && !$enableMssql) {
         return false;
     }
 
