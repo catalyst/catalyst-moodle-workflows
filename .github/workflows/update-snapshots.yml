@@ -292,6 +292,13 @@ jobs:
             exit 1
           fi
 
+          # SQL Server calls Moodle FLOAT columns with fewer than 6 decimals REAL.
+          # Normalise that driver metadata in the portable snapshot; do not change Moodle's restore code.
+          if [ "${{ matrix.database }}" = "mssql" ]; then
+            php "$GITHUB_WORKSPACE/ci/.github/scripts/normalise-mssql-snapshot.php" \
+              "$PHPUNIT_SNAPSHOT" "$GITHUB_WORKSPACE/moodle"
+          fi
+
           cp "$PHPUNIT_SNAPSHOT" "$GITHUB_WORKSPACE/phpunit-snapshot.zip"
           echo "PHPUNIT_SNAPSHOT=$GITHUB_WORKSPACE/phpunit-snapshot.zip" >> "$GITHUB_ENV"
 
