@@ -69,8 +69,12 @@ jobs:
               }
               if r['database'] == 'pgsql':
                   entry['pgsql-ver'] = str(r['pgsql-ver'])
-              else:
+              elif r['database'] == 'mariadb':
                   entry['mariadb-ver'] = str(r['mariadb-ver'])
+              elif r['database'] == 'mssql':
+                  entry['mssql-ver'] = str(r['mssql-ver'])
+              else:
+                  raise ValueError(f"Unsupported database: {r['database']}")
               matrix.append(entry)
 
           with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
@@ -112,6 +116,21 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 3
+      mssql:
+        image: ${{ matrix.mssql-ver && format('mcr.microsoft.com/mssql/server:{0}-latest', matrix.mssql-ver) || '' }}
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: 'Developer'
+          # The service is ephemeral and localhost-only; one fixed value keeps snapshot and test configs reproducible.
+          SA_PASSWORD: 'MoodleMSSQL-CI-2026!'
+          MSSQL_SA_PASSWORD: 'MoodleMSSQL-CI-2026!'
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "bash -c 'if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"MoodleMSSQL-CI-2026!\" -C -Q \"SELECT 1\" -b -o /dev/null; else /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"MoodleMSSQL-CI-2026!\" -Q \"SELECT 1\" -b -o /dev/null; fi'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - name: Check out CI repo
         uses: actions/checkout@v4
@@ -128,8 +147,13 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           ini-values: max_input_vars=5000
-          extensions: pgsql, mysqli, zip, gd, xmlrpc, soap
+          extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ matrix.database == 'mssql' && 'sqlsrv,' || '' }}
           coverage: none
+
+      - name: Install Microsoft SQL Server ODBC driver
+        if: matrix.database == 'mssql'
+        shell: bash
+        run: bash "$GITHUB_WORKSPACE/ci/.github/scripts/install-mssql-odbc-driver.sh"
 
       - name: Install moodle-plugin-ci
         shell: bash
@@ -207,9 +231,15 @@ jobs:
             DBTYPE="pgsql"
             psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS moodle;"
             psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE moodle;"
-          else
+          elif [ "$DB" = "mariadb" ]; then
             DBTYPE="mariadb"
             mysql -h 127.0.0.1 -u root -e "DROP DATABASE IF EXISTS moodle; CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          elif [ "$DB" = "mssql" ]; then
+            DBTYPE="mssql"
+            php "$GITHUB_WORKSPACE/ci/.github/scripts/create-mssql-moodle-database.php"
+          else
+            echo "Unsupported database: $DB"
+            exit 1
           fi
 
           # Render config.php from template — only DBTYPE varies.
@@ -260,6 +290,13 @@ jobs:
           if [ -z "$PHPUNIT_SNAPSHOT" ]; then
             echo "Could not find phpunit snapshot archive in $PHPUNIT_DATAROOT"
             exit 1
+          fi
+
+          # SQL Server calls Moodle FLOAT columns with fewer than 6 decimals REAL.
+          # Normalise that driver metadata in the portable snapshot; do not change Moodle's restore code.
+          if [ "${{ matrix.database }}" = "mssql" ]; then
+            php "$GITHUB_WORKSPACE/ci/.github/scripts/normalise-mssql-snapshot.php" \
+              "$PHPUNIT_SNAPSHOT" "$GITHUB_WORKSPACE/moodle"
           fi
 
           cp "$PHPUNIT_SNAPSHOT" "$GITHUB_WORKSPACE/phpunit-snapshot.zip"

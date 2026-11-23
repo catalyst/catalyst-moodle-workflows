@@ -45,8 +45,13 @@ runs:
       with:
         php-version: ${{ inputs.php }}
         ini-values: max_input_vars=5000
-        extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.extra_php_extensions }}
+        extensions: pgsql, mysqli, zip, gd, xmlrpc, soap, ${{ inputs.database == 'mssql' && 'sqlsrv,' || '' }} ${{ inputs.extra_php_extensions }}
         coverage: none
+
+    - name: Install Microsoft SQL Server ODBC driver
+      if: ${{ inputs.database == 'mssql' }}
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/ci/.github/scripts/install-mssql-odbc-driver.sh"
 
     - name: Pull snapshot Docker image and extract artifacts
       shell: bash

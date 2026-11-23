@@ -1,23 +1,30 @@
 <?php
 // Moodle configuration generated from template during snapshot creation.
-// Only {{DBTYPE}} is substituted at runtime (pgsql or mariadb).
+// Only {{DBTYPE}} is substituted at runtime (pgsql, mariadb, or mssql).
 unset($CFG);
 global $CFG;
 $CFG = new stdClass();
 
-$CFG->dbtype    = '{{DBTYPE}}';
+$CFG->dbtype    = '{{DBTYPE}}' === 'mssql' ? 'sqlsrv' : '{{DBTYPE}}';
 $CFG->dblibrary = 'native';
 $CFG->dbhost    = '127.0.0.1';
 $CFG->dbname    = 'moodle';
-$CFG->dbuser    = '{{DBTYPE}}' === 'pgsql' ? 'postgres' : 'root';
-$CFG->dbpass    = '';
+$CFG->dbuser    = '{{DBTYPE}}' === 'pgsql' ? 'postgres' : ('{{DBTYPE}}' === 'mssql' ? 'sa' : 'root');
+// This credential is used only by the ephemeral, localhost-only SQL Server CI container.
+$CFG->dbpass    = '{{DBTYPE}}' === 'mssql' ? 'MoodleMSSQL-CI-2026!' : '';
 $CFG->prefix    = 'mdl_';
 $CFG->dboptions = [
     'dbpersist'   => 0,
-    'dbport'      => '',
+    'dbport'      => '{{DBTYPE}}' === 'mssql' ? 1433 : '',
     'dbsocket'    => '',
-    'dbcollation' => 'utf8mb4_unicode_ci',
+    'dbcollation' => '{{DBTYPE}}' === 'mssql' ? 'Latin1_General_CI_AI' : 'utf8mb4_unicode_ci',
 ];
+if ('{{DBTYPE}}' === 'mssql') {
+    // The Microsoft container uses a self-signed certificate that is safe to trust in this isolated job.
+    $CFG->dboptions['extrainfo'] = [
+        'TrustServerCertificate' => true,
+    ];
+}
 
 // config.php lives at moodle/config.php; dataroot is a sibling of moodle/.
 $CFG->wwwroot  = 'http://localhost';
