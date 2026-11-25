@@ -47,7 +47,7 @@ on:
         description: 'If true, this will skip testing against moodle/main branch'
         type: boolean
       disable_release:
-        description: 'If true, this will skip the release job'
+        description: 'If true, this will skip the Moodle Marketplace release'
         type: boolean
         default: false
       enable_composer_publish:
@@ -168,7 +168,7 @@ jobs:
         id: check-branch
         run: |
           publishable=${{ github.event.repository.fork == false &&
-          inputs.disable_release == false && (
+          (
             (startsWith(github.ref, 'refs/heads/MOODLE_') &&
             endsWith(github.ref, '_STABLE')) ||
             github.ref == 'refs/heads/main' || (
@@ -922,6 +922,7 @@ jobs:
       !contains(needs.*.result, 'cancelled') &&
       needs.pre_job.outputs.should_skip != 'true' &&
       needs.prepare_matrix.outputs.release_required == 'true' &&
+      inputs.disable_release == false &&
       inputs.enable_release == true
     runs-on: ubuntu-latest
     outputs:
