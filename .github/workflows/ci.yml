@@ -1065,7 +1065,6 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.pre_job.outputs.should_skip != 'true' &&
-      needs.prepare_matrix.outputs.release_required == 'true' &&
       inputs.enable_composer_publish == true
     runs-on: ubuntu-latest
     steps:
