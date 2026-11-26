@@ -51,7 +51,7 @@ on:
         type: boolean
         default: false
       enable_composer_publish:
-        description: 'If true, enables publishing plugin composer package on pushes to *_STABLE branches'
+        description: 'If true, enables publishing on pushes to protected MOODLE_*_STABLE or *-catalyst branches'
         type: boolean
         default: true
       enable_phpmd:
@@ -125,20 +125,31 @@ jobs:
    # Map a step output to a job output
    outputs:
      should_skip: ${{ steps.eligibility.outputs.should_skip }}
+     composer_publish_eligible: ${{ steps.eligibility.outputs.composer_publish_eligible }}
    steps:
      - id: eligibility
        name: Check branch/event eligibility
        env:
          EVENT_NAME: ${{ github.event_name }}
          REF_PROTECTED: ${{ github.ref_protected }}
+         REF_TYPE: ${{ github.ref_type }}
+         REF_NAME: ${{ github.ref_name }}
        run: |
          should_skip=true
+         composer_publish_eligible=false
 
          if [[ "${EVENT_NAME}" == "pull_request" || ( "${EVENT_NAME}" == "push" && "${REF_PROTECTED}" == "true" ) ]]; then
            should_skip=false
          fi
 
+         if [[ "${EVENT_NAME}" == "push" && "${REF_TYPE}" == "branch" && "${REF_PROTECTED}" == "true" ]]; then
+           case "${REF_NAME}" in
+             MOODLE_*_STABLE|*-catalyst) composer_publish_eligible=true ;;
+           esac
+         fi
+
          echo "should_skip=${should_skip}" >> "${GITHUB_OUTPUT}"
+         echo "composer_publish_eligible=${composer_publish_eligible}" >> "${GITHUB_OUTPUT}"
   prepare_matrix:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
@@ -1066,6 +1077,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.pre_job.outputs.should_skip != 'true' &&
+      needs.pre_job.outputs.composer_publish_eligible == 'true' &&
       inputs.enable_composer_publish == true
     runs-on: ubuntu-latest
     steps:
