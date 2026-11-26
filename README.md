@@ -82,6 +82,7 @@ Below lists the available inputs which are _all optional_:
 | disable_phplint          | Set `true` to disable phplint tests.                                                                                                                                                     |
 | disable_phpunit          | Set `true` to disable phpunit tests.                                                                                                                                                     |
 | enable_mssql             | Set `true` to add SQL Server PHPUnit and Behat jobs. Disabled by default due to higher matrix cost and lower usage; uses SQL Server 2017 or 2019 according to the Moodle branch minimum. |
+| enable_composer_publish  | Publish the Composer package after successful tests on pushes to protected `MOODLE_*_STABLE` or `*-catalyst` branches. Defaults to `true`. |
 | disable_grunt            | Set `true` to disable grunt.                                                                                                                                                             |
 | disable_mustache         | Set `true` to disable mustache.                                                                                                                                                          |
 | disable_master           | If `true`, this will skip testing against moodle/master branch                                                                                                                           |
